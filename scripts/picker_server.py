@@ -97,7 +97,7 @@ class PickerServer(ThreadingHTTPServer):
         self.entries = []
         for entry in self.library['entries']:
             item = {key: entry.get(key) for key in ('key', 'name', 'category', 'kind',
-                'available', 'supported', 'sources', 'occurrences', 'animation_type', 'missing_paths', 'preview_kind')}
+                'available', 'supported', 'sources', 'occurrences', 'animation_type', 'missing_paths', 'preview_kind', 'display_name', 'template_kind', 'sample_texts')}
             item['previews'] = []
             for raw in entry.get('preview_files', []) or []:
                 if not isinstance(raw, str) or not raw or '://' in raw or raw.startswith(('//', '\\\\')):
@@ -266,7 +266,7 @@ class PickerHandler(BaseHTTPRequestHandler):
         entries = [entry for entry in self.server.entries if
             (not category or entry['category'] == category) and
             (not direction or entry['animation_type'] == direction) and
-            (not term or term in (str(entry.get('name') or '') + ' ' + entry['key'] + ' ' +
+            (not term or term in (str(entry.get('display_name') or '') + ' ' + str(entry.get('name') or '') + ' ' + entry['key'] + ' ' +
                                  json.dumps(entry.get('sources'), ensure_ascii=False)).casefold())]
         self._send(200, {'entries': entries[(page - 1) * size:page * size],
                          'total': len(entries), 'page': page, 'page_size': size})

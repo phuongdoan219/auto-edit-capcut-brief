@@ -54,6 +54,24 @@ class LibraryScanTests(unittest.TestCase):
     def require_scan(self):
         self.assertIsNotNone(scan, 'library scanner has not been implemented')
 
+    def test_template_preview_does_not_borrow_dependent_effect_icon(self):
+        template_cache = self.root / 'template-cache'
+        template_cache.mkdir()
+        (template_cache / 'config.json').write_text('{}')
+        self.draft['materials']['text_templates'][0].update(
+            path=str(template_cache), type='text_template_subtitle', name='短文本边框弹出Ⅱ')
+        write_draft(self.root / 'drafts' / 'one' / 'draft_content.json', self.draft)
+        cat, _ = scan.ensure_library(self.root / 'state', roots=[self.root / 'drafts'])
+        template = next(e for e in cat['entries'] if e['category'] == 'text_template')
+        self.assertEqual([], template['preview_files'])
+        self.assertEqual('subtitle', template['template_kind'])
+        self.assertTrue(template['display_name'].startswith('Mẫu phụ đề'))
+        self.assertEqual('短文本边框弹出Ⅱ', template['name'])
+        (template_cache / 'preview.mp4').write_bytes(b'native preview')
+        cat, _ = scan.ensure_library(self.root / 'state', roots=[self.root / 'drafts'])
+        template = next(e for e in cat['entries'] if e['category'] == 'text_template')
+        self.assertEqual([str(template_cache / 'preview.mp4')], template['preview_files'])
+
     def test_harvest_six_categories_and_keep_native_recipes(self):
         self.require_scan()
         write_draft(self.root / 'drafts' / 'one' / 'draft_content.json', self.draft)

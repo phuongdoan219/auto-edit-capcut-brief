@@ -379,6 +379,39 @@ def _previews(paths):
     return sorted(found)
 
 
+def describe_entry(item):
+    """UI labels are descriptive aliases, never modify native names or IDs."""
+    category = item.get('category')
+    raw = item.get('name', '')
+    if category == 'text_template':
+        templates = item.get('materials', {}).get('text_templates', [])
+        subtitle = bool(templates) and all(t.get('type') == 'text_template_subtitle' for t in templates)
+        item['template_kind'] = 'subtitle' if subtitle else 'text'
+        fonts = list(dict.fromkeys(f.get('title') for t in item.get('materials', {}).get('texts', [])
+                                  for f in t.get('fonts', []) if f.get('title')))
+        prefix = 'Mẫu phụ đề' if subtitle else 'Mẫu chữ'
+        item['display_name'] = prefix + (' · ' + ', '.join(fonts) if fonts else '') + ' · ' + item.get('key', '')[-6:]
+    elif re.search(r'[\u3400-\u9fff]', raw):
+        prefix = {'text_effect': 'Hiệu ứng chữ', 'text_animation': 'Chuyển động chữ',
+                  'sticker': 'Sticker', 'video_effect': 'Hiệu ứng video'}.get(category, 'Kiểu chữ')
+        item['display_name'] = prefix + ' · ' + item.get('key', '')[-6:]
+    else:
+        item['display_name'] = raw
+
+
+def _preview_paths(item):
+    # A template's effects/fonts/animations are dependencies, not its own preview.
+    materials = item.get('materials', {})
+    category = item.get('category')
+    if category == 'text_template':
+        return [t['path'] for t in materials.get('text_templates', []) if t.get('path')]
+    if category == 'text_effect':
+        return resource_paths(item.get('effect_recipe', {}).get('effects', []))
+    if category == 'text_animation':
+        return resource_paths(item.get('animation', {}))
+    return resource_paths({'materials': materials, 'effect_material': item.get('effect_material', {})})
+
+
 def _availability(item):
     native = {'materials': item.get('materials', {}), 'animation': item.get('animation', {}), 'effect_material': item.get('effect_material', {})}
     paths = resource_paths(native)
@@ -386,7 +419,8 @@ def _availability(item):
     item['resource_paths'] = paths
     item['missing_paths'] = missing
     item['available'] = not missing
-    item['preview_files'] = _previews(paths)
+    item['preview_files'] = _previews(_preview_paths(item))
+    describe_entry(item)
 
 
 def ensure_library(state_dir, roots=None, force=False):
