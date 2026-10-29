@@ -22,7 +22,11 @@ Nếu cài bằng cách copy/clone thủ công hay trình cài skill khác, thao
 
 ## Sử dụng thường ngày
 
-Gọi skill với kịch bản và source/voice của video. Skill dùng thư viện đã lưu, lập kế hoạch dựng, mở popup lựa chọn theo từng cảnh rồi build theo lựa chọn được xác nhận. Không quét lại project/cache hoặc duyệt kho CapCut ở mỗi lần edit. Machine-state mặc định trên Windows: `%LOCALAPPDATA%/CodexCapCutBrief`; thư viện được kiểm tra theo máy, không dùng nhầm bản mang từ máy khác.
+Gọi skill với kịch bản và source/voice của video. **B1:** AI cắt ghép source, ghép voice/nhạc, bố cục và hiệu ứng theo brief để xuất rough cut. **B2:** Mở popup chọn Text Effects/Stickers với preview trên frame của rough cut và thanh xem các mốc trong cảnh. **B3:** Sau Confirm & Edit, áp lựa chọn vào project CapCut. Preview layout còn gần đúng về kích thước/appearance native và sticker motion; cần xem/render trong CapCut để xác nhận chính xác. Xem `references/scene-preview.md` để chuẩn bị preview.
+
+Skill dùng thư viện đã lưu, không quét lại project/cache hoặc duyệt kho CapCut ở mỗi lần edit. Machine-state mặc định trên Windows: `%LOCALAPPDATA%/CodexCapCutBrief`; thư viện được kiểm tra theo máy, không dùng nhầm bản mang từ máy khác.
+
+Popup gửi lựa chọn theo slot ID về server localhost khi bấm Confirm & Edit; server kiểm tra và lưu `selection.json`. Worker `workflow.py run` đang chờ đọc file để build tiếp. Không có worker thì AI gọi `resume` trong lượt tương tác tiếp theo. Popup không tự gửi một tin nhắn mới hay đánh thức chat đã kết thúc. Continue chỉ lưu nháp trên trình duyệt.
 
 Popup tiếng Anh hướng dẫn từng bước, mỗi màn chỉ chọn một **Text Effect** hoặc **Sticker**. Bấm vào ô mẫu rồi **Continue**; sticker tùy chọn có thể **Skip**. Chỉ có hai nút chính: **Back** và **Continue/Skip**. Cuối luồng có tóm tắt và **Confirm & Edit**. Sau xác nhận chỉ hiện hoàn tất và **Close**. Lựa chọn/vị trí bước được tự lưu nháp; Continue không tự gửi cho bước dựng. Nội dung video giữ nguyên theo brief.
 

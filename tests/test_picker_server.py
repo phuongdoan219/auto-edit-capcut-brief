@@ -72,6 +72,36 @@ class PickerServerTests(unittest.TestCase):
         self.assertEqual('confirmed', saved['status'])
         self.assertEqual(self.choices, saved['choices'])
 
+    def test_scene_preview_is_authenticated_read_only_and_rejects_path_parameters(self):
+        from PIL import Image
+        from urllib.parse import urlencode
+        still=self.directory/'scene.jpg'
+        Image.new('RGB',(90,160),'blue').save(still)
+        self.server.scene_preview={'canvas':{'width':90,'height':160},'appearance':'approximate_layout',
+            'scenes':[{'id':'frame-1','start':0,'end':1,'layers':[],
+                       'samples':[{'time':.5,'file':str(still)}]}]}
+        query='/api/scene-preview?'+urlencode({'frame':'frame-1','sample':0,'choices':'{}'})
+        before=self.session_path.read_bytes()
+        self.assertEqual(401,self.call(query,token=False)[0])
+        status,body,headers=self.call(query)
+        self.assertEqual(200,status)
+        self.assertEqual('image/jpeg',headers['Content-Type'])
+        self.assertTrue(body.startswith(b'\xff\xd8'))
+        self.assertEqual(400,self.call(query+'&path=secret.txt')[0])
+        self.assertEqual(422,self.call(query.replace('sample=0','sample=99'))[0])
+        self.assertEqual(before,self.session_path.read_bytes())
+
+    def test_previous_confirmed_choices_restore_as_pending_and_never_auto_confirm(self):
+        from selection_session import confirm_session
+        old=confirm_session(self.request,self.library,self.choices,self.server.request_hash,self.server.library_hash)
+        self.module.atomic_json(self.directory/'draft-from-confirmed.json',old)
+        server=self.module.create_server(self.request_path,self.library_path,self.directory/'revision.json')
+        try:
+            self.assertEqual(self.choices,server.initial_choices)
+            self.assertEqual('pending',server.session['status'])
+            self.assertEqual({},server.session['choices'])
+        finally:server.server_close()
+
     def test_auth_origin_body_limit_and_invalid_choice_never_confirm(self):
         self.assertEqual(401, self.call('/api/state', token=False)[0])
         self.assertEqual(403, self.call('/api/confirm', self.payload(), origin=False)[0])

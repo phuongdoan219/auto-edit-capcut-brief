@@ -19,6 +19,7 @@ import threading
 import time
 from urllib.parse import parse_qs, urlsplit
 import webbrowser
+import scene_preview
 
 from selection_session import (CATEGORIES, confirm_session, effect_baseline_ready, file_hash, make_session,
                                validate_confirmed_session)
@@ -77,6 +78,8 @@ class PickerServer(ThreadingHTTPServer):
         self.library_hash = file_hash(self.library_path)
         self.request = read_json(self.request_path)
         self.library = read_json(self.library_path)
+        self.library['_preview_library_dir'] = str(self.library_path.parent)
+        self.scene_preview = scene_preview.load(self.session_path.parent, self.request_hash)
         pending = make_session(self.request, self.library, self.request_hash, self.library_hash)
         if self.session_path.exists():
             existing = read_json(self.session_path)
@@ -90,6 +93,15 @@ class PickerServer(ThreadingHTTPServer):
             self.session = existing
         else:
             self.session = pending
+        self.initial_choices = {}
+        previous = self.session_path.parent / 'draft-from-confirmed.json'
+        if self.session.get('status') != 'confirmed' and previous.is_file():
+            draft = read_json(previous)
+            errors = validate_confirmed_session(self.request, self.library, draft,
+                self.request_hash, self.library_hash)
+            if errors:
+                raise ValueError('Restored choices are stale: ' + '; '.join(errors))
+            self.initial_choices = draft['choices']
         self.token = secrets.token_urlsafe(32)
         self.nonce = secrets.token_urlsafe(18)
         self.lock = threading.Lock()
@@ -168,7 +180,7 @@ class PickerHandler(BaseHTTPRequestHandler):
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header('Content-Security-Policy', "default-src 'none'; script-src 'nonce-" + self.server.nonce +
                          "'; style-src 'nonce-" + self.server.nonce +
-                         "'; img-src 'self'; media-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
+                         "'; img-src 'self' blob:; media-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'")
         for key, value in (extra or {}).items():
             self.send_header(key, value)
         self.end_headers()
@@ -257,13 +269,35 @@ class PickerHandler(BaseHTTPRequestHandler):
             self._send(200, {'request': self.server.request,
                 'library': {'machine_id': self.server.library['machine_id'], 'entries': self.server.entries},
                 'session': self.server.session, 'request_hash': self.server.request_hash,
-                'library_hash': self.server.library_hash})
+                'library_hash': self.server.library_hash,
+                'scene_preview': scene_preview.metadata(self.server.scene_preview),
+                'initial_choices': self.server.initial_choices})
         elif path == '/api/assets':
             self._assets(query)
+        elif path == '/api/scene-preview':
+            self._scene_preview(query)
         elif path.startswith('/api/media/'):
             self._media(path[len('/api/media/'):], query)
         else:
             self._send(404, {'error': 'Route not found'})
+
+    def _scene_preview(self, query):
+        if set(query) != {'frame', 'sample', 'choices'} or any(len(v) != 1 for v in query.values()):
+            self._send(400, {'error': 'frame, sample and choices are required'})
+            return
+        try:
+            # Read-only composition. No draft write, compiler, FFmpeg or native
+            # project operation can be triggered by previewing a choice.
+            payload = query['choices'][0]
+            if len(payload) > 32768:
+                raise ValueError('Preview choices are too large')
+            body, warnings = scene_preview.render(self.server.scene_preview, self.server.request,
+                self.server.library, query['frame'][0], int(query['sample'][0]), _json_body(payload.encode()))
+            self._headers(200, 'image/jpeg', len(body), {'X-Preview-Notice': ' '.join(sorted(warnings))})
+            if self.command != 'HEAD':
+                self.wfile.write(body)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            self._send(422, {'error': str(error)})
 
     def _assets(self, query):
         allowed = {'category', 'query', 'page', 'page_size', 'animation_type', 'selectable_only'}

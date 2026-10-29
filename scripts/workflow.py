@@ -23,7 +23,18 @@ def default_state():
     return library_setup.default_state()
 
 
-def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None):
+def restore_confirmed_draft(work,session_path):
+    """Reuse only proven user choices in a new pending revision; never confirm it."""
+    work=Path(work);state=read(work/'workflow.json');session=read(session_path)
+    if Path(state['session']).exists() and read(state['session']).get('status')=='confirmed':
+        raise ValueError('Create a new pending work folder to revise confirmed choices')
+    errors=S.validate_confirmed_session(read(state['request']),read(state['library']),session,
+        S.file_hash(state['request']),S.file_hash(state['library']))
+    if errors:raise ValueError('Cannot reuse choices from another request/library: '+'; '.join(errors))
+    save(work/'draft-from-confirmed.json',session)
+
+
+def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None,roughcut=None,reuse_selection=None):
     work=Path(work).resolve();work.mkdir(parents=True,exist_ok=True)
     if (work/'selection.json').exists():raise ValueError('This work folder already has a selection session; resume it or use a new folder')
     request=effect_sticker_request(read(request_path))
@@ -44,11 +55,21 @@ def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None):
            'preview_jobs':setup['preview_jobs'],'previews_pending':setup['previews_pending'],
            'library_mode':setup['mode'],'installed_library':str(installed_path),
            'plan':str(Path(plan).resolve()) if plan else None,'base':str(Path(base).resolve()) if base else None}
-    save(work/'workflow.json',state);return state
+    save(work/'workflow.json',state)
+    if roughcut:
+        import scene_preview
+        scene_preview.prepare(work,roughcut)
+        state=read(work/'workflow.json')
+    if reuse_selection:restore_confirmed_draft(work,reuse_selection)
+    return state
 
 
 def launch(work,no_open=False):
     work=Path(work).resolve();state=read(work/'workflow.json');info_path=Path(state['service'])
+    if read(state['request']).get('selection_mode')=='effects_stickers':
+        import scene_preview
+        if not scene_preview.load(work,S.file_hash(state['request'])):
+            raise ValueError('Finish Step 1 first, then run scene_preview.py --work <work> --video <roughcut.mp4> before opening choices')
     if info_path.exists():
         info=read(info_path)
         try:
@@ -105,7 +126,7 @@ def resume(work,install=False,confirmed_closed=False):
 def main():
     ap=argparse.ArgumentParser(description=__doc__);sub=ap.add_subparsers(dest='command',required=True)
     p=sub.add_parser('setup');p.add_argument('--state-dir');p.add_argument('--root',action='append');p.add_argument('--cache-root',action='append');p.add_argument('--refresh',action='store_true')
-    p=sub.add_parser('prepare');p.add_argument('--request',required=True);p.add_argument('--work',required=True);p.add_argument('--state-dir');p.add_argument('--root',action='append');p.add_argument('--plan');p.add_argument('--base')
+    p=sub.add_parser('prepare');p.add_argument('--request',required=True);p.add_argument('--work',required=True);p.add_argument('--state-dir');p.add_argument('--root',action='append');p.add_argument('--plan');p.add_argument('--base');p.add_argument('--roughcut');p.add_argument('--reuse-selection')
     for command in ('launch','resume','run'):
         p=sub.add_parser(command);p.add_argument('--work',required=True)
         if command in ('launch','run'):p.add_argument('--no-open',action='store_true')
@@ -116,7 +137,7 @@ def main():
     try:
         if a.command=='setup':
             _,_,result=library_setup.load_or_setup(a.state_dir,a.root,refresh=a.refresh,caches=a.cache_root)
-        elif a.command=='prepare':result=prepare(a.request,a.work,a.state_dir,a.root,a.plan,a.base)
+        elif a.command=='prepare':result=prepare(a.request,a.work,a.state_dir,a.root,a.plan,a.base,a.roughcut,a.reuse_selection)
         elif a.command=='launch':result=launch(a.work,a.no_open)
         elif a.command=='resume':result=resume(a.work,a.install,a.confirmed_closed)
         else:

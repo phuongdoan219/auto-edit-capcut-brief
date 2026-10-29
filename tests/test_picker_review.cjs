@@ -73,3 +73,17 @@ test('preview failure tries another file, then hides the option',()=>{
  run('p.children[0].error()');assert.match(run('p.children[0].src'),/^\/two/);
  run('p.children[0].error()');assert.equal(run('failed'),true);
 });
+
+test('on-frame preview sends only this scene choices and never confirms',async()=>{
+ const {run}=picker({text:{effect:'effect'},otherScene:{effect:'effect'}});
+ run(`state.scene_preview={scenes:[{id:'f1',start:0,samples:[{time:.5},{time:1.5}],slots:[{id:'text',start:1,duration:1}]}]};
+ globalThis.calls=[];globalThis.URL={createObjectURL:()=>'/blob',revokeObjectURL(){}};
+ fetch=async(path,options)=>{calls.push({path,options});return {ok:true,headers:{get(){return ''}},blob:async()=>({})}};
+ $('moment').value='1';`);
+ await run('updateScenePreview()');
+ const request=new URL(run('calls[0].path'),'http://localhost');
+ assert.equal(request.pathname,'/api/scene-preview');
+ assert.deepEqual(JSON.parse(request.searchParams.get('choices')),{text:{effect:'effect'}});
+ assert.equal(request.searchParams.get('sample'),'1');assert.equal(run('confirmed'),false);
+ assert.equal(run("$('frame-image').hidden"),false);
+});
