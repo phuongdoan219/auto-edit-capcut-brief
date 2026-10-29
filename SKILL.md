@@ -50,6 +50,8 @@ Bàn giao project chỉnh sửa được, nguồn media cần giữ nguyên ch�
 
 Khi đánh giá hoặc phát triển thêm engine dựng, đọc [references/video-engine-comparison.md](references/video-engine-comparison.md): đối chiếu scene-plan compiler, phụ đề, audio fade/loudness, transition/mask/blur, tái dùng layout, nhiều biến thể và media registration. Lookup/audit hiện có không đồng nghĩa đã tích hợp backend dựng. Giữ việc giải brief, nguồn/voice và các lựa chọn user ở skill; chỉ chuyển sang CLI với tính năng đã mapping đầy đủ, không âm thầm bỏ native slot/layer/crop. Một draft có một backend ghi/finalize; kiểm chứng JSON và app/render riêng biệt.
 
+Phạm vi task edit hiện tại: phần xem xét tích hợp tiếp tập trung vào `compile` dựng timeline và transition theo brief/lựa chọn user. Người dùng chưa cần phụ đề tự động theo voice, fade âm thanh hoặc dựng nhiều phiên bản; không đưa ba phần này vào luồng mặc định hay ưu tiên triển khai hiện tại. Text ghi trong từng frame vẫn dựng theo brief, transcript vẫn dùng khi cần dò đúng đoạn source/voice, và giữ xử lý volume/mute/speed cần thiết.
+
 ## Bảo trì skill
 
 Skill này được quản lý bằng Git tại thư mục skill. Khi người dùng yêu cầu sửa skill, kiểm tra `git status`, giữ các thay đổi có sẵn, kiểm thử phù hợp, sau đó tạo commit cho thay đổi và push lên remote GitHub theo yêu cầu của người dùng. Nếu không thể push, báo rõ và giữ commit local.
