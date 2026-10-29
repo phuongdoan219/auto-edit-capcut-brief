@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+assets/library.local.json
+state/
+work/
+*.log
+picker-service.json
+selection.json
+library.json
+previews/
