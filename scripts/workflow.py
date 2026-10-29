@@ -34,9 +34,13 @@ def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None):
     # Pin the exact inventory snapshot for this user selection. Refreshing the
     # machine-wide inventory later cannot silently change an open picker.
     save(rp,request);save(lp,catalog)
+    from native_previews import jobs
+    preview_jobs = jobs(catalog)
+    save(work/'preview-jobs.json', preview_jobs)
     state={'schema':'capcut-choice-workflow/1','status':'ready','request':str(rp),'library':str(lp),
            'session':str(work/'selection.json'),'service':str(work/'picker-service.json'),
            'machine_id':catalog['machine_id'],'summary':catalog['summary'],
+           'preview_jobs':str(work/'preview-jobs.json'),'previews_pending':preview_jobs['pending'],
            'plan':str(Path(plan).resolve()) if plan else None,'base':str(Path(base).resolve()) if base else None}
     save(work/'workflow.json',state);return state
 

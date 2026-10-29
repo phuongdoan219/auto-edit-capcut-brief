@@ -8,3 +8,7 @@ picker-service.json
 selection.json
 library.json
 previews/
+
+native-previews.json
+native-catalog.json
+preview-jobs.json

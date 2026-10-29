@@ -493,13 +493,17 @@ def ensure_library(state_dir, roots=None, force=False):
             preview = create_preview(entry, state_dir)
             if preview:
                 entry['preview_files'] = [preview]
+    preview_catalog = {'entries': rows, 'machine_id': machine_identity(roots)}
+    from native_previews import merge
+    merge(preview_catalog, state_dir)
+    rows = preview_catalog['entries']
     cat = {'schema': SCHEMA, 'machine_id': machine_identity(roots), 'roots': [str(p) for p in roots],
         'generated_at': datetime.now(timezone.utc).isoformat(), 'projects': projects, 'entries': rows, 'errors': errors,
         'summary': {'timelines_found': len(paths), 'projects_scanned': sum(p['status'] == 'scanned' for p in projects),
             'projects_failed': sum(p['status'] == 'failed' for p in projects), 'duplicate_timelines': sum(p['status'] == 'duplicate' for p in projects),
             'entries': len(rows), 'categories': {c: sum(e['category'] == c for e in rows) for c in CATEGORIES},
             'available': sum(e['available'] for e in rows), 'supported': sum(e['supported'] for e in rows),
-            'missing_resource_entries': sum(bool(e['missing_paths']) for e in rows), 'errors': len(errors)}}
+            'missing_resource_entries': sum(bool(e.get('missing_paths')) for e in rows), 'errors': len(errors)}}
     dest = Path(state_dir).expanduser().resolve() / 'library.json'
     dest.parent.mkdir(parents=True, exist_ok=True)
     temporary = dest.with_suffix('.json.tmp')

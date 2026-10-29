@@ -97,7 +97,7 @@ class PickerServer(ThreadingHTTPServer):
         self.entries = []
         for entry in self.library['entries']:
             item = {key: entry.get(key) for key in ('key', 'name', 'category', 'kind',
-                'available', 'supported', 'sources', 'occurrences', 'animation_type', 'missing_paths', 'preview_kind', 'display_name', 'template_kind', 'sample_texts')}
+                'available', 'supported', 'sources', 'occurrences', 'animation_type', 'missing_paths', 'preview_kind', 'display_name', 'template_kind', 'sample_texts', 'origin', 'preview_motion')}
             item['previews'] = []
             for raw in entry.get('preview_files', []) or []:
                 if not isinstance(raw, str) or not raw or '://' in raw or raw.startswith(('//', '\\\\')):
