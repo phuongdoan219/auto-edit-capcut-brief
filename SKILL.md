@@ -46,6 +46,10 @@ Chờ phiên qua `python scripts/picker_server.py wait --session <work/selection
 
 Bàn giao project chỉnh sửa được, nguồn media cần giữ nguyên chỗ, bảng mapping và báo cáo những phần chưa kiểm chứng. Nếu người dùng chỉ yêu cầu custom skill, dừng ở package/kiểm thử; không tự dựng hoặc thay video thật của họ. Không hứa sử dụng tự động mọi tài nguyên Pro hay tương thích mọi bản CapCut.
 
+## Mở rộng khả năng dựng bằng capcut-cli
+
+Khi đánh giá hoặc phát triển thêm engine dựng, đọc [references/video-engine-comparison.md](references/video-engine-comparison.md): đối chiếu scene-plan compiler, phụ đề, audio fade/loudness, transition/mask/blur, tái dùng layout, nhiều biến thể và media registration. Lookup/audit hiện có không đồng nghĩa đã tích hợp backend dựng. Giữ việc giải brief, nguồn/voice và các lựa chọn user ở skill; chỉ chuyển sang CLI với tính năng đã mapping đầy đủ, không âm thầm bỏ native slot/layer/crop. Một draft có một backend ghi/finalize; kiểm chứng JSON và app/render riêng biệt.
+
 ## Bảo trì skill
 
 Skill này được quản lý bằng Git tại thư mục skill. Khi người dùng yêu cầu sửa skill, kiểm tra `git status`, giữ các thay đổi có sẵn, kiểm thử phù hợp, sau đó tạo commit cho thay đổi và push lên remote GitHub theo yêu cầu của người dùng. Nếu không thể push, báo rõ và giữ commit local.
