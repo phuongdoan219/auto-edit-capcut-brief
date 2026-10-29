@@ -133,6 +133,22 @@ class PickerServer(ThreadingHTTPServer):
                 'request': str(self.request_path), 'library': str(self.library_path),
                 'session': str(self.session_path), 'status': self.session['status']}
 
+    def has_preview(self, entry):
+        for preview in entry.get('previews', []):
+            media_id = preview['url'].rsplit('/', 1)[-1]
+            media = self.media.get(media_id)
+            if not media:
+                continue
+            try:
+                if not media[0].is_file():
+                    continue
+                with media[0].open('rb') as stream:
+                    if stream.read(1):
+                        return True
+            except OSError:
+                continue
+        return False
+
 
 class PickerHandler(BaseHTTPRequestHandler):
     server_version = 'CapCutPicker/1'
@@ -269,6 +285,7 @@ class PickerHandler(BaseHTTPRequestHandler):
             return
         term = query.get('query', [''])[0].casefold()
         entries = [entry for entry in self.server.entries if
+            (self.server.request.get('selection_mode') != 'effects_stickers' or self.server.has_preview(entry)) and
             (not category or entry['category'] == category) and
             (not direction or entry['animation_type'] == direction) and
             (not term or term in (str(entry.get('display_name') or '') + ' ' + str(entry.get('name') or '') + ' ' + entry['key'] + ' ' +

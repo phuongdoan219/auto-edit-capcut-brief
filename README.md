@@ -26,6 +26,8 @@ Gọi skill với kịch bản và source/voice của video. Skill dùng thư vi
 
 Trong popup, chỉ chọn **Text Effect** hoặc **Sticker** cho phần được kịch bản yêu cầu. Text Effect dùng font đi kèm donor, không bắt chọn font, animation hay template riêng. Thanh dưới cùng luôn có **Choose Missing Items**, **Review All** và **Confirm & Continue**. Lựa chọn được lưu nháp trong trình duyệt theo phiên; chỉ khi bạn bấm xác nhận mới gửi cho bước dựng. Ngôn ngữ giao diện là tiếng Anh; nội dung video giữ nguyên theo brief.
 
+Gallery chỉ hiển thị các mục có preview xem được. Mục thiếu hoặc lỗi preview được ẩn; nếu có preview dự phòng, popup tự thử trước khi ẩn mục đó.
+
 ## Cập nhật thư viện khi muốn
 
 Khi đã thêm project/tải tài nguyên mới và muốn đưa vào thư viện, yêu cầu AI làm mới hoặc chạy trong thư mục skill:

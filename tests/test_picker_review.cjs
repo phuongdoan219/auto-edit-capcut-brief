@@ -70,3 +70,13 @@ test('the picker exposes only English Text Effects and Stickers controls',()=>{
   const {run}=picker();
   assert.deepEqual(Array.from(run('Object.keys(labels)')),['text_effect','sticker']);
 });
+test('broken previews fall back to the next file and then hide the item',()=>{
+  const {run,nodes,context}=picker();
+  run("globalThis.failedPreview=false;globalThis.previewNode=preview({key:'broken',previews:[{url:'/first',type:'image/png'},{url:'/second',type:'image/png'}]},()=>{failedPreview=true})");
+  run('previewNode.children[0].error()');
+  assert.match(run('previewNode.children[0].src'),/^\/second/);
+  assert.equal(run('failedPreview'),false);
+  run('previewNode.children[0].error()');
+  assert.equal(run('failedPreview'),true);
+  assert.equal(run('previewNode.children.length'),0);
+});

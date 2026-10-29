@@ -146,6 +146,32 @@ class PickerServerTests(unittest.TestCase):
             self.assertFalse(effect['supported']) # fixture has a preview, but no text donor
         finally:server.server_close()
 
+    def test_effect_gallery_hides_missing_and_empty_previews_before_pagination(self):
+        from selection_request import effect_sticker_request
+        request=effect_sticker_request(self.request)
+        effect=next(e for e in self.library['entries'] if e['key']=='glow')
+        effect['preview_files']=[str(self.directory/'preview.gif')]
+        (self.directory/'empty.png').write_bytes(b'')
+        next(e for e in self.library['entries'] if e['key']=='heart')['preview_files']=[str(self.directory/'empty.png')]
+        rp=self.directory/'filtered-request.json';lp=self.directory/'filtered-library.json'
+        rp.write_text(json.dumps(request),encoding='utf-8');lp.write_text(json.dumps(self.library),encoding='utf-8')
+        server=self.module.create_server(rp,lp,self.directory/'filtered-session.json',port=0)
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        def assets():
+            req=urllib.request.Request(f'http://127.0.0.1:{server.server_port}/api/assets?page=1&page_size=1',
+                headers={'Authorization':'Bearer '+server.token})
+            with urllib.request.urlopen(req,timeout=3)as response:return json.load(response)
+        try:
+            result=assets()
+            self.assertEqual(1,result['total'])
+            self.assertEqual('glow',result['entries'][0]['key'])
+            # A preview can disappear after the server starts.
+            (self.directory/'preview.gif').unlink()
+            self.assertEqual(0,assets()['total'])
+            # Full metadata remains for existing unconfirmed choices.
+            self.assertEqual({'glow','heart'},{e['key']for e in server.entries})
+        finally:server.shutdown();server.server_close();thread.join(2)
+
 
 if __name__ == '__main__':
     unittest.main()
