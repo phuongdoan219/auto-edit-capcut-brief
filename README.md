@@ -24,6 +24,8 @@ Nếu cài bằng cách copy/clone thủ công hay trình cài skill khác, thao
 
 Gọi skill với kịch bản và source/voice của video. Skill dùng thư viện đã lưu, lập kế hoạch dựng, mở popup lựa chọn theo từng cảnh rồi build theo lựa chọn được xác nhận. Không quét lại project/cache hoặc duyệt kho CapCut ở mỗi lần edit. Machine-state mặc định trên Windows: `%LOCALAPPDATA%/CodexCapCutBrief`; thư viện được kiểm tra theo máy, không dùng nhầm bản mang từ máy khác.
 
+Trong popup, chọn **Kiểu chữ** hoặc **Mẫu chữ** cho từng phần chữ; hiệu ứng và chuyển động là tùy chọn. Thanh dưới cùng luôn hiển thị phần còn thiếu và nút **Xác nhận & dựng tiếp**. **Xem lại tất cả** mở bảng tổng hợp ngay trên cùng màn hình. Lựa chọn được lưu nháp trong trình duyệt theo phiên; chỉ khi bạn bấm xác nhận mới gửi cho bước dựng.
+
 ## Cập nhật thư viện khi muốn
 
 Khi đã thêm project/tải tài nguyên mới và muốn đưa vào thư viện, yêu cầu AI làm mới hoặc chạy trong thư mục skill:
