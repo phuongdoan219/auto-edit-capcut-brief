@@ -49,6 +49,10 @@ Chờ phiên qua `python scripts/picker_server.py wait --session <work/selection
 
 Bàn giao project chỉnh sửa được, nguồn media cần giữ nguyên chỗ, bảng mapping và báo cáo những phần chưa kiểm chứng. Nếu người dùng chỉ yêu cầu custom skill, dừng ở package/kiểm thử; không tự dựng hoặc thay video thật của họ. Không hứa sử dụng tự động mọi tài nguyên Pro hay tương thích mọi bản CapCut.
 
+## Kinh nghiệm kiểm chứng quy trình dựng
+
+Khi chuẩn bị base, canh source/voice, xem trước hoặc xử lý media mất liên kết, đọc [references/video-tutorial-findings.md](references/video-tutorial-findings.md). Bám timing vào audio/source thực tế, giữ frame có thể gồm nhiều shot; kiểm tra base có đủ donor media cần dùng và mở lại đúng project trong CapCut. Không coi clip đỏ mặc định là lỗi quyền, không coi proxy preview là native render, không thêm bước tạo voice/ảnh hoặc vòng duyệt lại nội dung đã chốt. Quy trình thư viện thiết lập một lần và dùng lại khi edit giữ nguyên.
+
 ## Mở rộng khả năng dựng bằng capcut-cli
 
 Khi đánh giá hoặc phát triển thêm engine dựng, đọc [references/video-engine-comparison.md](references/video-engine-comparison.md): đối chiếu scene-plan compiler, phụ đề, audio fade/loudness, transition/mask/blur, tái dùng layout, nhiều biến thể và media registration. Lookup/audit hiện có không đồng nghĩa đã tích hợp backend dựng. Giữ việc giải brief, nguồn/voice và các lựa chọn user ở skill; chỉ chuyển sang CLI với tính năng đã mapping đầy đủ, không âm thầm bỏ native slot/layer/crop. Một draft có một backend ghi/finalize; kiểm chứng JSON và app/render riêng biệt.
