@@ -24,7 +24,13 @@ def assemble_plan(plan,request,library,session,request_hash=None,library_hash=No
                 continue
             if slot['role']=='text':
                 if kind!='text':raise ValueError('Text slot attached to non-text segment')
-                if choice.get('template'):
+                if slot['categories']==['text_effect']:
+                    # The human selected this complete effect donor, including
+                    # its existing font. Remove inherited motion before reapplying
+                    # only its appearance; no separate style decision is invented.
+                    segment['asset']=choice['effect'];segment['custom_text']=True
+                    segment['effect_asset']=choice['effect'];segment['animation_assets']={}
+                elif choice.get('template'):
                     segment['asset']=choice['template'];segment['custom_text']=False
                     segment.pop('effect_asset',None);segment.pop('animation_assets',None)
                 else:

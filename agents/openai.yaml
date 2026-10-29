@@ -1,4 +1,4 @@
 interface:
   display_name: "CapCut Brief Editor"
-  short_description: "Dựng footage theo brief với text và sticker native"
-  default_prompt: "Dùng $auto-edit-capcut-brief để dựng video từ kịch bản từng frame, source và voice có sẵn; mở popup để tôi chọn element phù hợp từ thư viện CapCut native."
+  short_description: "Edit scene briefs with native Text Effects and Stickers"
+  default_prompt: "Use $auto-edit-capcut-brief to edit a video from scene briefs and provided footage and voice. Open the English picker for Text Effects and Stickers only, then build using my confirmed selections."

@@ -24,7 +24,7 @@ function picker(choices={}) {
     localStorage:{getItem(k){return storage.get(k)||null;},setItem(k,v){storage.set(k,v);},removeItem(k){storage.delete(k);}}});
   vm.runInContext(script.slice(0,end),context);
   vm.runInContext(`state={request_hash:'request-a',library_hash:'library-a',request:{frames:[{id:'frame-1',slots:[
-    {id:'text',label:'Chữ cảnh 1',role:'text',required:true,categories:['text_style','text_template','text_effect']}]}]}};
+    {id:'text',label:'Text Effect 1',role:'text',required:true,categories:['text_effect']}]}]}};
     entriesByKey={font:{key:'font',category:'text_style',name:'Font',available:true,supported:true},
       effect:{key:'effect',category:'text_effect',name:'Effect',available:true,supported:true},
       template:{key:'template',category:'text_template',name:'Template',available:true,supported:true}};
@@ -38,32 +38,35 @@ test('confirmation is on the main footer, without a second review dialog',()=>{
   assert.doesNotMatch(html,/<dialog[^>]*id="asset-detail"/);
 });
 test('incomplete selections can be reviewed inline without changing choices',()=>{
-  const {run}=picker({text:{effect:'effect'}});
+  const {run}=picker({});
   run('review()');
   assert.equal(run('viewMode'),'review');
-  assert.equal(run('choices.text.effect'),'effect');
+  assert.equal(run('Object.keys(choices).length'),0);
 });
-test('effect alone cannot enable confirmation; a chosen font can',()=>{
-  const {run,nodes}=picker({text:{effect:'effect'}});
+test('a text effect alone enables confirmation without asking for a style',()=>{
+  const {run,nodes}=picker({});
   run('updateProgress()');
   assert.equal(nodes.get('confirm').disabled,true);
   assert.match(nodes.get('remaining').textContent,/1/);
-  run("choices.text.style='font';updateProgress()");
+  run("choices.text={effect:'effect'};updateProgress()");
   assert.equal(nodes.get('confirm').disabled,false);
 });
 test('unconfirmed choices survive reload and are scoped to request and library',()=>{
-  const {run}=picker({text:{style:'font',effect:'effect'}});
+  const {run}=picker({text:{effect:'effect'}});
   run('persistDraft(); choices={};restoreDraft()');
-  assert.equal(run('choices.text.style'),'font');
   assert.equal(run('choices.text.effect'),'effect');
   run("state.library_hash='different';choices={};restoreDraft()");
   assert.equal(run('Object.keys(choices).length'),0);
 });
-test('selecting a template explicitly replaces custom settings, without confirming',()=>{
-  const {run,nodes}=picker({text:{style:'font',effect:'effect'}});
-  run("target={slot:state.request.frames[0].slots[0],part:'template'};chooseAsset(entriesByKey.template)");
-  assert.equal(run('choices.text.template'),'template');
-  assert.equal(run('choices.text.style'),undefined);
+test('choosing an effect saves that choice without confirming automatically',()=>{
+  const {run,nodes}=picker({});
+  run("target={slot:state.request.frames[0].slots[0],part:'effect'};chooseAsset(entriesByKey.effect)");
+  assert.equal(run('choices.text.effect'),'effect');
   assert.equal(run('confirmed'),false);
   assert.equal(nodes.get('gallery').open,false);
+});
+test('the picker exposes only English Text Effects and Stickers controls',()=>{
+  assert.doesNotMatch(html,/Chọn|Xác nhận|Kiểu chữ|Mẫu chữ|Chuyển động/);
+  const {run}=picker();
+  assert.deepEqual(Array.from(run('Object.keys(labels)')),['text_effect','sticker']);
 });

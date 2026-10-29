@@ -134,6 +134,18 @@ class PickerServerTests(unittest.TestCase):
         self.assertIn("default-src 'none'", headers['Content-Security-Policy'])
         self.assertEqual('127.0.0.1', self.server.server_address[0])
 
+    def test_effect_mode_exposes_only_two_categories_and_disables_preview_only_effects(self):
+        from selection_request import effect_sticker_request
+        request=effect_sticker_request(self.request)
+        path=self.directory/'effects-request.json'
+        path.write_text(json.dumps(request),encoding='utf-8')
+        server=self.module.create_server(path,self.library_path,self.directory/'effects-session.json',port=0)
+        try:
+            self.assertEqual({'text_effect','sticker'},{e['category']for e in server.entries})
+            effect=next(e for e in server.entries if e['category']=='text_effect')
+            self.assertFalse(effect['supported']) # fixture has a preview, but no text donor
+        finally:server.server_close()
+
 
 if __name__ == '__main__':
     unittest.main()

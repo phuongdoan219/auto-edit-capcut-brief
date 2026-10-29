@@ -1,7 +1,23 @@
 """Draft frame selection slots from a brief; AI reviews semantic/layout requirements."""
-import argparse,json,re,uuid
+import argparse,copy,json,re,uuid
 from pathlib import Path
 import brief_io
+
+
+def effect_sticker_request(request):
+    result=copy.deepcopy(request)
+    result['selection_mode']='effects_stickers'
+    for frame in result.get('frames',[]):
+        slots=[]
+        for slot in frame.get('slots',[]):
+            if slot.get('role')=='text':
+                slot['categories']=['text_effect'];slot['label']='Text Effect '+str(len(slots)+1)
+            elif slot.get('role') in ('sticker','icon'):
+                slot['categories']=['sticker'];slot['label']='Sticker '+str(len(slots)+1)
+            else:continue
+            slots.append(slot)
+        frame['slots']=slots
+    return result
 
 
 def make_request(raw):
@@ -26,18 +42,15 @@ def make_request(raw):
                     end=re.search(r'(?im)^\s*(?:-\s*(?:Text|Hình ảnh|Voice)\b|Ở phần)',rest)
                     blocks.append(rest[:end.start() if end else len(rest)].strip())
             for n,text in enumerate(blocks,1):
-                slots.append({'id':f'{fid}.text{n}','role':'text','label':'Chữ '+str(n),
+                slots.append({'id':f'{fid}.text{n}','role':'text','label':'Text Effect '+str(n),
                               'text':text,'requirement':notes,'required':True,
-                              'categories':['text_style','text_effect','text_animation','text_template']})
+                              'categories':['text_effect']})
             if re.search(r'(?i)\b(?:sticker|icon|biểu tượng|mũi tên)\b',notes):
-                slots.append({'id':fid+'.sticker1','role':'sticker','label':'Sticker / icon',
+                slots.append({'id':fid+'.sticker1','role':'sticker','label':'Sticker',
                               'requirement':notes,'required':True,'categories':['sticker']})
-            if f.get('video_effect') or re.search(r'(?i)(?:video effect|hiệu ứng video|hiệu ứng toàn (?:cảnh|khung))',notes):
-                slots.append({'id':fid+'.effect1','role':'video_effect','label':'Hiệu ứng video',
-                              'requirement':f.get('video_effect') or notes,'required':True,'categories':['video_effect']})
         frames.append({'id':fid,'dialogue':f.get('dialogue',''),'edit_notes':notes,'slots':slots})
-    return {'schema':'capcut-selection-request/1','id':str(uuid.uuid4()),'title':brief.get('title','Chọn element CapCut'),
-            'brief_source':brief.get('source_id'),'semantic_review_required':True,'frames':frames}
+    return effect_sticker_request({'schema':'capcut-selection-request/1','id':str(uuid.uuid4()),'title':brief.get('title','Choose Text Effects & Stickers'),
+            'brief_source':brief.get('source_id'),'semantic_review_required':True,'frames':frames})
 
 
 def main():

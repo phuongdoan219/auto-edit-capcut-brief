@@ -20,7 +20,7 @@ import time
 from urllib.parse import parse_qs, urlsplit
 import webbrowser
 
-from selection_session import (CATEGORIES, confirm_session, file_hash, make_session,
+from selection_session import (CATEGORIES, confirm_session, effect_baseline_ready, file_hash, make_session,
                                validate_confirmed_session)
 
 BODY_LIMIT = 1024 * 1024
@@ -56,11 +56,11 @@ def _json_body(body):
         result = {}
         for key, value in items:
             if key in result:
-                raise ValueError('Trùng khóa JSON: ' + key)
+                raise ValueError('Duplicate JSON key: ' + key)
             result[key] = value
         return result
     return json.loads(body.decode('utf-8'), object_pairs_hook=pairs,
-                      parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Giá trị số JSON không hợp lệ')))
+                      parse_constant=lambda value: (_ for _ in ()).throw(ValueError('Invalid JSON number')))
 
 
 class PickerServer(ThreadingHTTPServer):
@@ -72,7 +72,7 @@ class PickerServer(ThreadingHTTPServer):
         self.library_path = Path(library_path).resolve()
         self.session_path = Path(session_path).resolve()
         if len({self.request_path, self.library_path, self.session_path}) != 3:
-            raise ValueError('Yêu cầu, thư viện và phiên phải là ba tệp khác nhau')
+            raise ValueError('Request, library and session must be separate files')
         self.request_hash = file_hash(self.request_path)
         self.library_hash = file_hash(self.library_path)
         self.request = read_json(self.request_path)
@@ -84,9 +84,9 @@ class PickerServer(ThreadingHTTPServer):
                 errors = validate_confirmed_session(self.request, self.library, existing,
                     self.request_hash, self.library_hash)
                 if errors:
-                    raise ValueError('Phiên đã lưu không còn khớp: ' + '; '.join(errors))
+                    raise ValueError('Saved session is stale: ' + '; '.join(errors))
             elif existing != pending:
-                raise ValueError('Phiên đang chờ không khớp yêu cầu hoặc thư viện này')
+                raise ValueError('Pending session does not match this request or library')
             self.session = existing
         else:
             self.session = pending
@@ -96,8 +96,13 @@ class PickerServer(ThreadingHTTPServer):
         self.media = {}
         self.entries = []
         for entry in self.library['entries']:
+            if self.request.get('selection_mode') == 'effects_stickers' and entry['category'] not in ('text_effect','sticker'):
+                continue
             item = {key: entry.get(key) for key in ('key', 'name', 'category', 'kind',
                 'available', 'supported', 'sources', 'occurrences', 'animation_type', 'missing_paths', 'preview_kind', 'display_name', 'template_kind', 'sample_texts', 'origin', 'preview_motion')}
+            if (self.request.get('selection_mode') == 'effects_stickers' and entry['category'] == 'text_effect'
+                    and not effect_baseline_ready(entry)):
+                item['supported'] = False
             item['previews'] = []
             for raw in entry.get('preview_files', []) or []:
                 if not isinstance(raw, str) or not raw or '://' in raw or raw.startswith(('//', '\\\\')):
@@ -197,7 +202,7 @@ class PickerHandler(BaseHTTPRequestHandler):
 
     def _host(self):
         if self.headers.get('Host') != '127.0.0.1:' + str(self.server.server_port):
-            self._send(403, {'error': 'Địa chỉ Host cục bộ không hợp lệ'})
+            self._send(403, {'error': 'Invalid local Host address'})
             return False
         return True
 
@@ -207,7 +212,7 @@ class PickerHandler(BaseHTTPRequestHandler):
         if media and not supplied and len(query.get('token', [])) == 1:
             supplied = query['token'][0]
         if not supplied or not hmac.compare_digest(supplied, self.server.token):
-            self._send(401, {'error': 'Cần mã truy cập của phiên chọn thành phần'})
+            self._send(401, {'error': 'A picker session token is required'})
             return False
         return True
 
@@ -228,7 +233,7 @@ class PickerHandler(BaseHTTPRequestHandler):
             self._headers(204, 'image/x-icon')
             return
         if not path or not path.startswith('/api/'):
-            self._send(404, {'error': 'Đường dẫn không tồn tại'})
+            self._send(404, {'error': 'Route not found'})
             return
         if not self._auth(query, media=path.startswith('/api/media/')):
             return
@@ -242,12 +247,12 @@ class PickerHandler(BaseHTTPRequestHandler):
         elif path.startswith('/api/media/'):
             self._media(path[len('/api/media/'):], query)
         else:
-            self._send(404, {'error': 'Đường dẫn không tồn tại'})
+            self._send(404, {'error': 'Route not found'})
 
     def _assets(self, query):
         allowed = {'category', 'query', 'page', 'page_size', 'animation_type'}
         if set(query) - allowed or any(len(value) != 1 for value in query.values()):
-            self._send(400, {'error': 'Bộ lọc thư viện không hợp lệ'})
+            self._send(400, {'error': 'Invalid library filter'})
             return
         try:
             page = int(query.get('page', ['1'])[0])
@@ -255,12 +260,12 @@ class PickerHandler(BaseHTTPRequestHandler):
             if page < 1 or not 1 <= size <= 100:
                 raise ValueError()
         except ValueError:
-            self._send(400, {'error': 'Thông số phân trang không hợp lệ'})
+            self._send(400, {'error': 'Invalid pagination parameters'})
             return
         category = query.get('category', [''])[0]
         direction = query.get('animation_type', [''])[0]
         if (category and category not in CATEGORIES) or (direction and direction not in ('in', 'out', 'loop')):
-            self._send(400, {'error': 'Loại thành phần hoặc chuyển động không hợp lệ'})
+            self._send(400, {'error': 'Invalid asset category or animation direction'})
             return
         term = query.get('query', [''])[0].casefold()
         entries = [entry for entry in self.server.entries if
@@ -273,7 +278,7 @@ class PickerHandler(BaseHTTPRequestHandler):
 
     def _media(self, media_id, query):
         if set(query) - {'token'} or any(len(value) != 1 for value in query.values()) or media_id not in self.server.media:
-            self._send(404, {'error': 'Tệp xem trước không tồn tại'})
+            self._send(404, {'error': 'Preview not found'})
             return
         path, content_type = self.server.media[media_id]
         try:
@@ -284,7 +289,7 @@ class PickerHandler(BaseHTTPRequestHandler):
                 if requested:
                     match = re.fullmatch(r'bytes=(\d*)-(\d*)', requested)
                     if not match or not any(match.groups()) or size == 0:
-                        self._send(416, {'error': 'Phạm vi byte không hợp lệ'})
+                        self._send(416, {'error': 'Invalid byte range'})
                         return
                     left, right = match.groups()
                     if left:
@@ -293,7 +298,7 @@ class PickerHandler(BaseHTTPRequestHandler):
                     else:
                         start = max(0, size - int(right))
                     if start > end or start >= size:
-                        self._send(416, {'error': 'Phạm vi byte nằm ngoài tệp xem trước'})
+                        self._send(416, {'error': 'Byte range is outside the preview file'})
                         return
                     status = 206
                 length = max(0, end - start + 1)
@@ -309,7 +314,7 @@ class PickerHandler(BaseHTTPRequestHandler):
                     self.wfile.write(chunk)
                     remaining -= len(chunk)
         except (FileNotFoundError, PermissionError):
-            self._send(404, {'error': 'Tệp xem trước không còn trên máy'})
+            self._send(404, {'error': 'Preview is no longer on this computer'})
         except (BrokenPipeError, ConnectionResetError):
             pass
 
@@ -317,28 +322,28 @@ class PickerHandler(BaseHTTPRequestHandler):
         if not self._host(): return
         path, query = self._route()
         if path != '/api/confirm' or query:
-            self._send(404, {'error': 'Đường dẫn không tồn tại'})
+            self._send(404, {'error': 'Route not found'})
             return
         if not self._auth(query): return
         if self.headers.get('Origin') != self.server.origin or self.headers.get('Sec-Fetch-Site') == 'cross-site':
-            self._send(403, {'error': 'Phải xác nhận từ đúng cửa sổ chọn thành phần'})
+            self._send(403, {'error': 'Confirm from the original picker window'})
             return
         if self.headers.get('Transfer-Encoding'):
-            self._send(400, {'error': 'Không hỗ trợ mã hóa truyền này'})
+            self._send(400, {'error': 'Transfer encoding is unsupported'})
             return
         try:
             length = int(self.headers.get('Content-Length', '-1'))
         except ValueError:
             length = -1
         if length < 0:
-            self._send(411, {'error': 'Thiếu kích thước Content-Length'})
+            self._send(411, {'error': 'Content-Length is required'})
             return
         if length > BODY_LIMIT:
             self.close_connection = True
-            self._send(413, {'error': 'Dữ liệu xác nhận vượt quá 1 MiB'})
+            self._send(413, {'error': 'Confirmation exceeds 1 MiB'})
             return
         if self.headers.get_content_type() != 'application/json':
-            self._send(415, {'error': 'Cần dữ liệu kiểu application/json'})
+            self._send(415, {'error': 'Content-Type must be application/json'})
             return
         self.connection.settimeout(10)
         try:
@@ -346,10 +351,10 @@ class PickerHandler(BaseHTTPRequestHandler):
             self._body_consumed = True
             payload = _json_body(body)
         except (ValueError, UnicodeError, TimeoutError, RecursionError):
-            self._send(400, {'error': 'Dữ liệu JSON xác nhận không hợp lệ'})
+            self._send(400, {'error': 'Invalid confirmation JSON'})
             return
         if not isinstance(payload, dict) or set(payload) != {'choices', 'request_hash', 'library_hash'}:
-            self._send(400, {'error': 'Cần choices, request_hash và library_hash'})
+            self._send(400, {'error': 'choices, request_hash and library_hash are required'})
             return
         with self.server.lock:
             try:
@@ -360,10 +365,10 @@ class PickerHandler(BaseHTTPRequestHandler):
             except OSError:
                 stale = True
             if stale:
-                self._send(409, {'error': 'Yêu cầu hoặc thư viện đã thay đổi; hãy mở phiên chọn thành phần mới'})
+                self._send(409, {'error': 'Request or library changed; open a new picker session'})
                 return
             if self.server.session['status'] == 'confirmed':
-                self._send(409, {'error': 'Phiên này đã được xác nhận'})
+                self._send(409, {'error': 'This session is already confirmed'})
                 return
             try:
                 confirmed = confirm_session(self.server.request, self.server.library, payload['choices'],
@@ -374,7 +379,7 @@ class PickerHandler(BaseHTTPRequestHandler):
             try:
                 atomic_json(self.server.session_path, confirmed)
             except OSError:
-                self._send(500, {'error': 'Không lưu được lựa chọn; phiên vẫn chờ xác nhận'})
+                self._send(500, {'error': 'Could not save selections; session is still pending'})
                 return
             self.server.session = confirmed
             self._send(200, {'session': confirmed})
@@ -422,7 +427,7 @@ def main(argv=None):
     try:
         if args.command in ('status', 'wait'):
             if args.command == 'wait' and not (0 <= args.timeout <= 60 and 0.05 <= args.interval <= 5):
-                raise ValueError('Thời gian chờ phải từ 0 đến 60 giây, khoảng kiểm tra từ 0.05 đến 5 giây')
+                raise ValueError('Timeout must be 0–60 seconds, with a 0.05–5 second interval')
             deadline = time.monotonic() + (args.timeout if args.command == 'wait' else 0)
             while True:
                 session = read_json(args.session)
@@ -431,7 +436,7 @@ def main(argv=None):
                     return 0 if session.get('status') == 'confirmed' else 2
                 time.sleep(min(args.interval, max(0, deadline - time.monotonic())))
         if args.state and args.state.resolve() in {args.request.resolve(), args.library.resolve(), args.session.resolve()}:
-            raise ValueError('Thông tin dịch vụ phải lưu vào tệp riêng')
+            raise ValueError('Service information must be saved in a separate file')
         server = create_server(args.request, args.library, args.session, args.port)
         try:
             info = server.service_info()

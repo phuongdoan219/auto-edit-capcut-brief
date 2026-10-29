@@ -17,6 +17,25 @@ ROLE_CATEGORIES = {'text': CATEGORIES - {'sticker', 'video_effect'},
                    'video_effect': frozenset(('video_effect',))}
 
 
+def effect_baseline_ready(entry):
+    """An effect picker needs the selected effect's own editable text donor."""
+    try:
+        materials = entry.get('materials', {})
+        texts = materials.get('texts', [])
+        if not isinstance(texts, list) or len(texts) != 1:
+            return False
+        styles = json.loads(texts[0].get('content', '{}')).get('styles', [])
+        recipe = entry.get('effect_recipe', {})
+        return (entry.get('kind') == 'text' and isinstance(entry.get('segment'), dict)
+                and entry['segment'].get('material_id') == texts[0].get('id')
+                and bool(texts[0].get('id')) and not materials.get('text_templates')
+                and isinstance(styles, list) and len(styles) == 1 and isinstance(styles[0], dict)
+                and isinstance(recipe.get('effects'), list) and bool(recipe['effects'])
+                and isinstance(recipe.get('style_overrides'), list) and bool(recipe['style_overrides']))
+    except (TypeError, ValueError, KeyError, AttributeError):
+        return False
+
+
 def file_hash(path):
     digest = hashlib.sha256()
     with Path(path).open('rb') as stream:
@@ -33,61 +52,61 @@ def object_hash(value):
 def _contracts(request, library):
     errors, slots, entries = [], {}, {}
     if not isinstance(request, dict) or request.get('schema') != REQUEST_SCHEMA:
-        return ['Cấu trúc yêu cầu chọn thành phần không hợp lệ'], slots, entries
+        return ['Invalid selection request schema'], slots, entries
     if not isinstance(library, dict) or library.get('schema') != LIBRARY_SCHEMA:
-        return ['Cấu trúc thư viện CapCut không hợp lệ'], slots, entries
+        return ['Invalid CapCut library schema'], slots, entries
     if not isinstance(request.get('id'), str) or not request['id'].strip():
-        errors.append('Yêu cầu phải có mã id')
+        errors.append('A request id is required')
     if not isinstance(library.get('machine_id'), str) or not library['machine_id'].strip():
-        errors.append('Thư viện phải có mã máy machine_id')
+        errors.append('The library needs a machine_id')
     frames = request.get('frames')
     if not isinstance(frames, list) or not frames:
-        errors.append('Yêu cầu phải có danh sách cảnh')
+        errors.append('A scene list is required')
         frames = []
     frame_ids = set()
     for frame in frames:
         if not isinstance(frame, dict) or not isinstance(frame.get('id'), str) or not frame['id']:
-            errors.append('Mỗi cảnh cần có mã id')
+            errors.append('Each scene needs an id')
             continue
         if frame['id'] in frame_ids:
-            errors.append('Trùng mã cảnh: ' + frame['id'])
+            errors.append('Duplicate scene id: ' + frame['id'])
         frame_ids.add(frame['id'])
         if not isinstance(frame.get('slots'), list):
-            errors.append('Danh sách ô chọn của cảnh không hợp lệ: ' + frame['id'])
+            errors.append('Invalid scene slots: ' + frame['id'])
             continue
         for slot in frame['slots']:
             if not isinstance(slot, dict) or not isinstance(slot.get('id'), str) or not slot['id']:
-                errors.append('Mỗi ô chọn cần có mã id')
+                errors.append('Each slot needs an id')
                 continue
             sid = slot['id']
             if sid in slots:
-                errors.append('Trùng mã ô chọn: ' + sid)
+                errors.append('Duplicate slot id: ' + sid)
             slots[sid] = slot
             role = slot.get('role')
             if role not in ROLE_CATEGORIES:
-                errors.append('Vai trò ô chọn không hợp lệ: ' + sid)
+                errors.append('Invalid slot role: ' + sid)
                 continue
             categories = slot.get('categories')
             if (not isinstance(categories, list) or not categories or
                     any(not isinstance(c, str) or c not in ROLE_CATEGORIES[role] for c in categories) or
                     len(set(categories)) != len(categories)):
-                errors.append('Loại thành phần của ô chọn không hợp lệ: ' + sid)
+                errors.append('Invalid slot categories: ' + sid)
             if type(slot.get('required')) is not bool:
-                errors.append('Thuộc tính required phải là true hoặc false: ' + sid)
+                errors.append('Required must be true or false: ' + sid)
     raw_entries = library.get('entries')
     if not isinstance(raw_entries, list):
-        errors.append('Thư viện phải có danh sách thành phần')
+        errors.append('The library needs an asset list')
         raw_entries = []
     for entry in raw_entries:
         if not isinstance(entry, dict) or not isinstance(entry.get('key'), str) or not entry['key']:
-            errors.append('Thành phần thư viện cần có mã key')
+            errors.append('Each library asset needs a key')
             continue
         key = entry['key']
         if key in entries:
-            errors.append('Trùng mã thành phần thư viện: ' + key)
+            errors.append('Duplicate library key: ' + key)
         entries[key] = entry
         if entry.get('category') not in CATEGORIES:
-            errors.append('Loại thành phần thư viện không hợp lệ: ' + key)
+            errors.append('Invalid library category: ' + key)
     return errors, slots, entries
 
 
@@ -97,70 +116,78 @@ def validate_choices(request, library, choices):
     if errors:
         return errors
     if not isinstance(choices, dict):
-        return ['Lựa chọn phải là đối tượng có khóa là mã ô chọn']
+        return ['Choices must be an object keyed by slot id']
     for sid in choices:
         if sid not in slots:
-            errors.append('Ô chọn không tồn tại: ' + str(sid))
+            errors.append('Unknown slot: ' + str(sid))
 
     def asset(sid, key, category, direction=None):
         if not isinstance(key, str) or not key:
-            errors.append(sid + ': hãy chọn thành phần loại ' + category)
+            errors.append(sid + ': choose an asset of type ' + category)
             return
         entry = entries.get(key)
         if entry is None:
-            errors.append(sid + ': thành phần không tồn tại: ' + key)
+            errors.append(sid + ': unknown asset: ' + key)
             return
         if entry.get('category') != category or category not in slots[sid]['categories']:
-            errors.append(sid + ': không được chọn loại thành phần này: ' + key)
+            errors.append(sid + ': this asset category is not allowed: ' + key)
         if entry.get('available') is not True or entry.get('supported') is not True:
-            errors.append(sid + ': thành phần thiếu tài nguyên hoặc chưa hỗ trợ: ' + key)
+            errors.append(sid + ': asset unavailable or unsupported: ' + key)
         paths = entry.get('resource_paths', [])
         if not isinstance(paths, list):
-            errors.append(sid + ': đường dẫn tài nguyên CapCut không hợp lệ: ' + key)
+            errors.append(sid + ': invalid CapCut resource path: ' + key)
             paths = []
         for raw in paths:
             try:
                 if not isinstance(raw, str) or '://' in raw or not Path(raw).is_absolute():
-                    raise ValueError('Tài nguyên phải có đường dẫn tuyệt đối trên máy')
+                    raise ValueError('Resources require absolute local paths')
                 path = Path(raw)
                 ready = path.is_file() or (path.is_dir() and next(path.iterdir(), None) is not None)
             except (OSError, ValueError):
                 ready = False
             if not ready:
-                errors.append(sid + ': tài nguyên gốc không còn trên máy: ' + str(raw))
+                errors.append(sid + ': resource is missing on this computer: ' + str(raw))
         if direction and entry.get('animation_type') != direction:
-            errors.append(sid + ': loại chuyển động phải là ' + direction + ': ' + key)
+            errors.append(sid + ': animation direction must be ' + direction + ': ' + key)
 
     for sid, slot in slots.items():
         if sid not in choices:
-            errors.append(sid + ': hãy chọn thành phần hoặc chủ động bỏ qua nếu không bắt buộc')
+            errors.append(sid + ': choose an item, or explicitly skip an optional slot')
             continue
         choice = choices[sid]
         if not isinstance(choice, dict):
-            errors.append(sid + ': lựa chọn phải là một đối tượng')
+            errors.append(sid + ': choice must be an object')
             continue
         if 'skip' in choice:
             if set(choice) != {'skip'} or choice.get('skip') is not True or slot['required']:
-                errors.append(sid + ': chỉ được bỏ qua ô không bắt buộc')
+                errors.append(sid + ': only optional slots may be skipped')
             continue
         if slot['role'] != 'text':
             if set(choice) != {'asset'}:
-                errors.append(sid + ': lựa chọn chỉ được chứa khóa asset')
+                errors.append(sid + ': choice may contain only the asset key')
             asset(sid, choice.get('asset'), 'sticker' if slot['role'] == 'icon' else slot['role'])
             continue
+        if slot['categories'] == ['text_effect']:
+            if set(choice) != {'effect'}:
+                errors.append(sid + ': choose one Text Effect only')
+            asset(sid, choice.get('effect'), 'text_effect')
+            selected = entries.get(choice['effect'], {}) if isinstance(choice.get('effect'), str) else {}
+            if not effect_baseline_ready(selected):
+                errors.append(sid + ': this effect has no supported editable text donor')
+            continue
         if set(choice) - {'style', 'effect', 'template', 'animations'}:
-            errors.append(sid + ': lựa chọn chữ có khóa không hợp lệ')
+            errors.append(sid + ': invalid text choice key')
         animations = choice.get('animations', {})
         if not isinstance(animations, dict):
-            errors.append(sid + ': animations phải là một đối tượng')
+            errors.append(sid + ': animations must be an object')
             animations = {}
         if set(animations) - {'in', 'out', 'loop'}:
-            errors.append(sid + ': loại chuyển động không hợp lệ')
+            errors.append(sid + ': invalid animation direction')
         if choice.get('template') is not None:
             asset(sid, choice['template'], 'text_template')
             if (choice.get('style') is not None or choice.get('effect') is not None or
                     any(value is not None for value in animations.values())):
-                errors.append(sid + ': mẫu chữ không được ghép thêm kiểu chữ, hiệu ứng hoặc chuyển động riêng')
+                errors.append(sid + ': templates cannot be combined with separate styles, effects, or animations')
         else:
             asset(sid, choice.get('style'), 'text_style')
             if choice.get('effect') is not None:
@@ -198,13 +225,13 @@ def validate_confirmed_session(request, library, session, request_hash=None, lib
     except (ValueError, TypeError) as error:
         return [str(error)]
     if not isinstance(session, dict):
-        return ['Phiên chọn thành phần phải là một đối tượng']
+        return ['Selection session must be an object']
     errors = []
     for field in ('schema', 'request_id', 'request_hash', 'library_hash', 'machine_id'):
         if session.get(field) != expected[field]:
-            errors.append('Trường phiên ' + field + ' không khớp yêu cầu hoặc thư viện hiện tại')
+            errors.append('Session field ' + field + ' does not match the current request or library')
     if session.get('status') != 'confirmed':
-        errors.append('Người dùng chưa xác nhận lựa chọn')
+        errors.append('Selections have not been confirmed by the user')
     errors.extend(validate_choices(request, library, session.get('choices')))
     return errors
 

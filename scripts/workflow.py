@@ -8,6 +8,7 @@ import selection_session as S
 import selection_plan
 import capcut_native
 import library_setup
+from selection_request import effect_sticker_request
 
 
 def read(path):return json.loads(Path(path).read_text(encoding='utf-8-sig'))
@@ -25,7 +26,7 @@ def default_state():
 def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None):
     work=Path(work).resolve();work.mkdir(parents=True,exist_ok=True)
     if (work/'selection.json').exists():raise ValueError('This work folder already has a selection session; resume it or use a new folder')
-    request=read(request_path)
+    request=effect_sticker_request(read(request_path))
     if request.get('semantic_review_required') is not False:raise ValueError('AI must review frame slots and set semantic_review_required=false before opening picker')
     catalog,installed_path,setup=library_setup.load_or_setup(state_dir or default_state(),roots)
     if not catalog['summary']['projects_scanned']:raise ValueError('No readable CapCut projects found; specify the actual draft root')
