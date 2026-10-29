@@ -93,6 +93,9 @@ def _contracts(request, library):
                 errors.append('Invalid slot categories: ' + sid)
             if type(slot.get('required')) is not bool:
                 errors.append('Required must be true or false: ' + sid)
+            if 'opt_in' in slot and (type(slot['opt_in']) is not bool or
+                    (slot['opt_in'] and (role not in ('sticker','icon') or slot.get('required') is not False))):
+                errors.append('Only optional sticker slots may be opt-in: ' + sid)
     raw_entries = library.get('entries')
     if not isinstance(raw_entries, list):
         errors.append('The library needs an asset list')
@@ -152,6 +155,8 @@ def validate_choices(request, library, choices):
 
     for sid, slot in slots.items():
         if sid not in choices:
+            if slot.get('opt_in') is True:
+                continue
             errors.append(sid + ': choose an item, or explicitly skip an optional slot')
             continue
         choice = choices[sid]

@@ -80,3 +80,13 @@ test('broken previews fall back to the next file and then hide the item',()=>{
   assert.equal(run('failedPreview'),true);
   assert.equal(run('previewNode.children.length'),0);
 });
+test('an unused optional sticker does not block confirmation or inflate progress',()=>{
+  const {run,nodes}=picker({text:{effect:'effect'}});
+  run("state.request.frames[0].slots.push({id:'sticker',role:'sticker',required:false,opt_in:true,categories:['sticker']});updateProgress()");
+  assert.equal(nodes.get('confirm').disabled,false);
+  assert.match(nodes.get('progress').textContent,/^1\/1 /);
+  assert.equal(run('slotErrors(state.request.frames[0].slots[1]).length'),0);
+  run("entriesByKey.heart={key:'heart',category:'sticker',supported:true,available:true};choices.sticker={asset:'heart'};updateProgress()");
+  assert.equal(nodes.get('confirm').disabled,false);
+  assert.match(nodes.get('progress').textContent,/^2\/2 /);
+});

@@ -7,15 +7,23 @@ import brief_io
 def effect_sticker_request(request):
     result=copy.deepcopy(request)
     result['selection_mode']='effects_stickers'
+    used={s.get('id') for f in result.get('frames',[]) for s in f.get('slots',[])}
     for frame in result.get('frames',[]):
         slots=[]
         for slot in frame.get('slots',[]):
             if slot.get('role')=='text':
                 slot['categories']=['text_effect'];slot['label']='Text Effect '+str(len(slots)+1)
             elif slot.get('role') in ('sticker','icon'):
-                slot['categories']=['sticker'];slot['label']='Sticker '+str(len(slots)+1)
+                slot['categories']=['sticker'];slot['label']='Stickers'
             else:continue
             slots.append(slot)
+        if not any(s.get('role') in ('sticker','icon') for s in slots):
+            sid=str(frame['id'])+'.sticker.optional';index=1
+            while sid in used:
+                index+=1;sid=str(frame['id'])+'.sticker.optional'+str(index)
+            used.add(sid)
+            slots.append({'id':sid,'role':'sticker','label':'Stickers','required':False,
+                          'opt_in':True,'categories':['sticker']})
         frame['slots']=slots
     return result
 
@@ -48,7 +56,7 @@ def make_request(raw):
             if re.search(r'(?i)\b(?:stickers?|icons?|nhãn d[áã]n|biểu tượng|mũi tên)\b',notes):
                 slots.append({'id':fid+'.sticker1','role':'sticker','label':'Sticker',
                               'requirement':notes,'required':True,'categories':['sticker']})
-        frames.append({'id':fid,'dialogue':f.get('dialogue',''),'edit_notes':notes,'slots':slots})
+        frames.append({'id':fid,'frame':f.get('frame',len(frames)+1),'dialogue':f.get('dialogue',''),'edit_notes':notes,'slots':slots})
     return effect_sticker_request({'schema':'capcut-selection-request/1','id':str(uuid.uuid4()),'title':brief.get('title','Choose Text Effects & Stickers'),
             'brief_source':brief.get('source_id'),'semantic_review_required':True,'frames':frames})
 

@@ -6,6 +6,31 @@ from pathlib import Path
 import selection_session as S
 
 
+def with_optional_sticker_placements(plan,request):
+    """Prepare editable defaults on known scene ranges, without choosing assets.
+
+    Agents may supply a scene-specific placement instead. Native scale and safe
+    areas still require checking in CapCut after the user has picked the sticker.
+    """
+    result=copy.deepcopy(plan)
+    known={s.get('slot_id') for s in result['segments']}
+    for index,frame in enumerate(request['frames'],1):
+        wanted=[s for s in frame['slots'] if s.get('opt_in') and s['id'] not in known]
+        if not wanted:continue
+        ids={str(frame['id']),str(frame.get('frame',index))}
+        visuals=[s for s in result['segments'] if s['kind'] in ('video','photo') and str(s.get('frame')) in ids]
+        intervals=[]
+        for start,end in sorted((s['start'],s['start']+s['duration']) for s in visuals):
+            if intervals and start<=intervals[-1][1]+1e-6:intervals[-1][1]=max(intervals[-1][1],end)
+            else:intervals.append([start,end])
+        for slot in wanted:
+            for start,end in intervals:
+                result['segments'].append({'kind':'sticker','frame':visuals[0]['frame'],'slot_id':slot['id'],
+                    'start':start,'duration':end-start,'layer':max(s.get('layer',0) for s in visuals)+4,
+                    'transform':{'scale':{'x':.3,'y':.3},'transform':{'x':.65,'y':-.65}}})
+    return result
+
+
 def assemble_plan(plan,request,library,session,request_hash=None,library_hash=None):
     errors=S.validate_confirmed_session(request,library,session,request_hash=request_hash,library_hash=library_hash)
     if errors:raise ValueError('Selection is not confirmed/current: '+str(errors))
@@ -17,7 +42,9 @@ def assemble_plan(plan,request,library,session,request_hash=None,library_hash=No
         if sid:
             if sid not in slots:raise ValueError('Unknown plan slot: '+sid)
             slot=slots[sid];choice=session['choices'].get(sid)
-            if choice is None:raise ValueError('Slot has no explicit human decision: '+sid)
+            if choice is None:
+                if slot.get('opt_in'):continue
+                raise ValueError('Slot has no explicit human decision: '+sid)
             seen.add(sid)
             if choice.get('skip'):
                 if slot.get('required',True):raise ValueError('Required slot cannot be skipped')
@@ -50,6 +77,8 @@ def assemble_plan(plan,request,library,session,request_hash=None,library_hash=No
         segments.append(segment)
     for sid,slot in slots.items():
         choice=session['choices'].get(sid,{})
+        if slot.get('opt_in') and not choice:
+            continue
         if sid not in seen and not choice.get('skip'):
             raise ValueError('Selected slot has no placement in the edit plan: '+sid)
     result['segments']=segments
