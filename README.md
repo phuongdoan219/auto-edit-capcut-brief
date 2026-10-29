@@ -30,6 +30,8 @@ Popup gửi lựa chọn theo slot ID về server localhost khi bấm Confirm & 
 
 Popup tiếng Anh hướng dẫn từng bước, mỗi màn chỉ chọn một **Text Effect** hoặc **Sticker**. Bấm vào ô mẫu rồi **Continue**; sticker tùy chọn có thể **Skip**. Chỉ có hai nút chính: **Back** và **Continue/Skip**. Cuối luồng có tóm tắt và **Confirm & Edit**. Sau xác nhận chỉ hiện hoàn tất và **Close**. Lựa chọn/vị trí bước được tự lưu nháp; Continue không tự gửi cho bước dựng. Nội dung video giữ nguyên theo brief.
 
+Tiêu đề và chữ phụ có thể chọn riêng qua **Main Text** và **Supporting Text**; mỗi nhóm giữ effect riêng khi dựng. Preview đọc màu từ recipe hiệu ứng thay vì màu chữ cũ trong project donor. Appearance chưa hỗ trợ sẽ hiện chữ trung tính kèm thông báo; preview vẫn cần CapCut để kiểm chứng chính xác.
+
 Mỗi scene có bước Sticker riêng. Nếu brief chưa yêu cầu sticker, bước đó là tùy chọn: chọn một mẫu hoặc bấm **Skip**. Bấm lại một sticker đã chọn để bỏ nó. Sticker được yêu cầu trong brief vẫn cần chọn theo yêu cầu đó.
 
 Danh sách mẫu chỉ hiển thị mục có preview và đủ dữ liệu dựng, không có các ô Choose bị khóa. Mục thiếu/lỗi preview được ẩn; nếu có preview dự phòng, popup tự thử trước khi ẩn mục đó. Tìm tên bằng Search, cuộn để xem thêm mẫu.

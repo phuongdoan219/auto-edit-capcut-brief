@@ -102,6 +102,33 @@ class PickerServerTests(unittest.TestCase):
             self.assertEqual({},server.session['choices'])
         finally:server.server_close()
 
+    def test_text_split_restores_old_choice_to_main_only_and_keeps_support_pending(self):
+        import copy
+        import workflow as W
+        from selection_session import confirm_session
+        saved=confirm_session(self.request,self.library,self.choices,self.server.request_hash,self.server.library_hash)
+        self.module.atomic_json(self.session_path,saved)
+        source={'request':str(self.request_path),'library':str(self.library_path),'session':str(self.session_path)}
+        self.module.atomic_json(self.directory/'workflow.json',source)
+        revision=self.directory/'revision';revision.mkdir()
+        request=copy.deepcopy(self.request)
+        slot=request['frames'][0]['slots'][0];slot.update(id='main',text_group='main')
+        support=copy.deepcopy(slot);support.update(id='support',text_group='support')
+        request['frames'][0]['slots'].insert(1,support)
+        rp=revision/'request.json';self.module.atomic_json(rp,request)
+        target={'request':str(rp),'library':str(self.library_path),'session':str(revision/'session.json')}
+        self.module.atomic_json(revision/'workflow.json',target)
+        result=W.restore_mapped_draft(revision,self.directory,{'caption':'main'},focus_slot='main')
+        self.assertIn('support',result['unselected_slots'])
+        server=self.module.create_server(rp,self.library_path,revision/'session.json')
+        try:
+            self.assertEqual(self.choices['caption'],server.initial_choices['main'])
+            self.assertNotIn('support',server.initial_choices)
+            self.assertEqual('main',server.initial_slot)
+            self.assertEqual('pending',server.session['status'])
+            self.assertEqual({},server.session['choices'])
+        finally:server.server_close()
+
     def test_auth_origin_body_limit_and_invalid_choice_never_confirm(self):
         self.assertEqual(401, self.call('/api/state', token=False)[0])
         self.assertEqual(403, self.call('/api/confirm', self.payload(), origin=False)[0])

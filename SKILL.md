@@ -49,6 +49,12 @@ Chạy `python scripts/workflow.py prepare --request <reviewed.json> --work <vid
 
 Chờ phiên qua `python scripts/picker_server.py wait --session <work/selection.json> --timeout 60`, mỗi lần tối đa 60 giây. Sau xác nhận, `python scripts/workflow.py resume --work <video-work>` áp đúng lựa chọn và build draft nếu plan/base đã đủ. `workflow.py run` có thể khởi động popup và tự chờ lựa chọn để tiếp tục build. Nguồn/timing phải được giải ở B1 trước popup; thiếu phần phụ thuộc thì hoàn thiện hoặc hỏi đúng thông tin thiếu trước khi mở B2, không đoán.
 
+## Chữ chính và chữ phụ
+
+Một cụm text có thể có nhiều lựa chọn độc lập. Khi brief/user phân biệt tiêu đề nhấn mạnh và nội dung phụ, tạo slot chữ `text_group: main` và `text_group: support`, label **Main Text**/**Supporting Text**. Ví dụ “BA CÓ” thuộc Main Text; ba dòng “Có kỷ luật…/Có trách nhiệm…/Có kỹ năng tự quản lý…” thuộc Supporting Text. Gắn đúng slot ID cho từng segment, giữ timing/layout; không gộp lại thành một effect cho cả cụm. Không tự coi bullet đầu tiên là tiêu đề.
+
+Dùng `selection_plan.split_text_slot` khi tách plan đã giải timing; nó yêu cầu phân hết segment cũ đúng một lần. Tạo phiên mới khi đổi request. `workflow.restore_mapped_draft` chỉ chuyển quyết định confirmed cũ tới slot được mapping rõ ràng, không tự sao chép lựa chọn chữ chính sang chữ phụ chưa được user chọn. Preview lấy màu từ recipe/default effectStyle của mẫu, không lấy trường màu cũ của donor; mode paint chưa hỗ trợ phải hiển thị neutral placement và báo chưa có appearance. Xem [scene-preview.md](references/scene-preview.md).
+
 ## Dựng và giao
 
 1. Chuẩn bị plan theo schema và gắn `slot_id` cho mọi text và sticker. Chỉ dùng plan đã áp các lựa chọn user đã xác nhận qua `selection_plan.py`. Ở chế độ mới, cả `asset` và `effect_asset` trỏ đúng hiệu ứng user chọn; `custom_text=true`, `animation_assets={}` để giữ font của donor và không kéo theo animation cũ. `capcut_native.py` hỗ trợ video/photo/audio có in/out và speed, mute độc lập, nhiều lớp, box/crop, flip, keyframe rõ ràng, text và sticker native. Blur nền, freeze, điều chỉnh sáng vùng riêng, chuyển cảnh/effect mới cần tiền xử lý hoặc thao tác native; xem reference. Không đưa trường không hỗ trợ vào plan và giả định builder làm được.

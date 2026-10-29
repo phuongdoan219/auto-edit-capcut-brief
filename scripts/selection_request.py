@@ -3,6 +3,8 @@ import argparse,copy,json,re,uuid
 from pathlib import Path
 import brief_io
 
+TEXT_GROUP_LABELS={'main':'Main Text','support':'Supporting Text'}
+
 
 def effect_sticker_request(request):
     result=copy.deepcopy(request)
@@ -12,7 +14,7 @@ def effect_sticker_request(request):
         slots=[]
         for slot in frame.get('slots',[]):
             if slot.get('role')=='text':
-                slot['categories']=['text_effect'];slot['label']='Text Effect '+str(len(slots)+1)
+                slot['categories']=['text_effect'];slot['label']=TEXT_GROUP_LABELS.get(slot.get('text_group'),'Text Effect '+str(len(slots)+1))
             elif slot.get('role') in ('sticker','icon'):
                 slot['categories']=['sticker'];slot['label']='Stickers'
             else:continue
@@ -40,7 +42,16 @@ def make_request(raw):
         else:
             explicit=f.get('on_screen_text') or f.get('text')
             blocks=[]
-            if explicit:
+            groups=f.get('text_groups')
+            if isinstance(groups,list):
+                for n,group in enumerate(groups,1):
+                    hierarchy=group.get('text_group') or group.get('role')
+                    if hierarchy not in TEXT_GROUP_LABELS or not isinstance(group.get('text'),str) or not group['text'].strip():
+                        raise ValueError('Each text group needs main/support and explicit text')
+                    slots.append({'id':group.get('id') or f'{fid}.text{n}','role':'text',
+                        'label':TEXT_GROUP_LABELS[hierarchy],'text_group':hierarchy,'text':group['text'],
+                        'requirement':notes,'required':True,'categories':['text_effect']})
+            elif explicit:
                 blocks=[str(x) for x in explicit] if isinstance(explicit,list) else [str(explicit)]
             else:
                 pattern=r'(?im)^(?:-\s*)?(?:Text\b[^\n]*|Ở phần[^\n]*hiện text[^\n]*|[^\n]*nội dung text hiện[^\n]*)(?::|：)[ \t]*'

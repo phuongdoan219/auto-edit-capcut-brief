@@ -49,6 +49,14 @@ class EffectPickerTests(fixtures.ChoiceAssemblyTests):
                 entry['materials']['texts'][0]['content']=json.dumps(content)
             self.assertTrue(S.validate_choices(self.request,lib,self.choices),change)
 
+    def test_native_effect_syncs_stale_donor_editor_color_to_its_recipe(self):
+        self.effect['materials']['texts'][0]['text_color']='#00ff18'
+        self.effect['effect_recipe']['style_overrides'][0]['fill']={'content':{
+            'render_type':'solid','solid':{'color':[1,1,.8]}}}
+        plan=A.assemble_plan(self.plan,self.request,self.library,self.confirmed())
+        draft,_=C.compile_plan(plan,self.base,self.library)
+        self.assertEqual('#ffffcc',draft['materials']['texts'][0]['text_color'])
+
     def test_user_choices_drive_native_fields(self):
         plan=A.assemble_plan(self.plan,self.request,self.library,self.confirmed())
         self.assertEqual('effect',plan['segments'][0]['asset'])

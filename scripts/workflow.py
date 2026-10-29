@@ -34,6 +34,44 @@ def restore_confirmed_draft(work,session_path):
     save(work/'draft-from-confirmed.json',session)
 
 
+def restore_mapped_draft(work,source_work,slot_map,focus_slot=None):
+    """Preserve proven user choices across an explicitly reviewed slot split.
+
+    Missing new groups remain unselected. A combined text choice may map to one
+    group only; it is never duplicated into its newly separated supporting copy.
+    """
+    work=Path(work);source_work=Path(source_work)
+    target=read(work/'workflow.json');source=read(source_work/'workflow.json')
+    request=read(target['request']);library=read(target['library'])
+    if Path(target['session']).exists() and read(target['session']).get('status')=='confirmed':
+        raise ValueError('Create a new pending revision before mapping choices')
+    session=read(source['session'])
+    errors=S.validate_confirmed_session(read(source['request']),read(source['library']),session,
+        S.file_hash(source['request']),S.file_hash(source['library']))
+    if errors:raise ValueError('Source choices must be confirmed and current: '+'; '.join(errors))
+    if S.file_hash(source['library'])!=S.file_hash(target['library']):
+        raise ValueError('Mapped drafts require the same library snapshot')
+    old={s['id']:s for f in read(source['request'])['frames'] for s in f['slots']}
+    new={s['id']:s for f in request['frames'] for s in f['slots']}
+    if not isinstance(slot_map,dict) or any(k not in old or v not in new for k,v in slot_map.items()):
+        raise ValueError('Invalid explicit slot mapping')
+    if focus_slot is not None and focus_slot not in new:raise ValueError('Unknown focus slot')
+    choices={}
+    for sid,choice in session['choices'].items():
+        dest=slot_map.get(sid,sid)
+        if dest not in new:continue
+        if old[sid]['role']!=new[dest]['role'] or old[sid]['categories']!=new[dest]['categories']:
+            raise ValueError('Slot mapping changes asset category')
+        if dest in choices:raise ValueError('Several choices map to the same group')
+        choices[dest]=choice
+    errors=S.validate_draft_choices(request,library,choices)
+    if errors:raise ValueError('; '.join(errors))
+    draft={'request_hash':S.file_hash(target['request']),'library_hash':S.file_hash(target['library']),
+        'choices':choices,'source_session_hash':S.file_hash(source['session']),'slot_map':slot_map,'focus_slot':focus_slot}
+    save(work/'initial-draft.json',draft)
+    return {'restored_choices':len(choices),'unselected_slots':[sid for sid in new if sid not in choices]}
+
+
 def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None,roughcut=None,reuse_selection=None):
     work=Path(work).resolve();work.mkdir(parents=True,exist_ok=True)
     if (work/'selection.json').exists():raise ValueError('This work folder already has a selection session; resume it or use a new folder')

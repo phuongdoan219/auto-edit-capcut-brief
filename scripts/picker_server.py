@@ -22,7 +22,7 @@ import webbrowser
 import scene_preview
 
 from selection_session import (CATEGORIES, confirm_session, effect_baseline_ready, file_hash, make_session,
-                               validate_confirmed_session)
+                               validate_confirmed_session, validate_draft_choices)
 
 BODY_LIMIT = 1024 * 1024
 PREVIEW_TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -94,6 +94,7 @@ class PickerServer(ThreadingHTTPServer):
         else:
             self.session = pending
         self.initial_choices = {}
+        self.initial_slot = None
         previous = self.session_path.parent / 'draft-from-confirmed.json'
         if self.session.get('status') != 'confirmed' and previous.is_file():
             draft = read_json(previous)
@@ -102,6 +103,17 @@ class PickerServer(ThreadingHTTPServer):
             if errors:
                 raise ValueError('Restored choices are stale: ' + '; '.join(errors))
             self.initial_choices = draft['choices']
+        revision = self.session_path.parent / 'initial-draft.json'
+        if self.session.get('status') != 'confirmed' and revision.is_file():
+            draft = read_json(revision)
+            if draft.get('request_hash') != self.request_hash or draft.get('library_hash') != self.library_hash:
+                raise ValueError('Revised draft is stale')
+            errors = validate_draft_choices(self.request, self.library, draft.get('choices'))
+            if errors:raise ValueError('Invalid revised draft: ' + '; '.join(errors))
+            self.initial_choices = draft['choices']
+            self.initial_slot = draft.get('focus_slot')
+            if self.initial_slot is not None and self.initial_slot not in {s['id'] for f in self.request['frames'] for s in f['slots']}:
+                raise ValueError('Revised draft focus slot is invalid')
         self.token = secrets.token_urlsafe(32)
         self.nonce = secrets.token_urlsafe(18)
         self.lock = threading.Lock()
@@ -271,7 +283,7 @@ class PickerHandler(BaseHTTPRequestHandler):
                 'session': self.server.session, 'request_hash': self.server.request_hash,
                 'library_hash': self.server.library_hash,
                 'scene_preview': scene_preview.metadata(self.server.scene_preview),
-                'initial_choices': self.server.initial_choices})
+                'initial_choices': self.server.initial_choices, 'initial_slot': self.server.initial_slot})
         elif path == '/api/assets':
             self._assets(query)
         elif path == '/api/scene-preview':

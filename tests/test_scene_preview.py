@@ -79,6 +79,45 @@ class ScenePreviewTests(unittest.TestCase):
         self.assertEqual(blank, skipped)
         self.assertNotEqual(blank, selected)
 
+    def test_effect_recipe_fill_overrides_stale_green_donor_color(self):
+        import effect_preview
+        self.effect['materials']['texts'][0]['text_color']='#00ff18'
+        self.effect['effect_recipe']['style_overrides']=[{'fill':{'content':{
+            'render_type':'solid','solid':{'color':[1,1,1]}}}}]
+        style,_=effect_preview.appearance(self.effect)
+        self.assertEqual([1,1,1],style['fill']['content']['solid']['color'])
+        image,_=effect_preview.render_text(self.effect,'BA CÓ',ImageFont.truetype(self.font,40),4)
+        pixels=[p for p in getattr(image,'get_flattened_data',image.getdata)() if p[3]>100]
+        self.assertTrue(pixels)
+        self.assertFalse(any(g>r+30 and g>b+30 for r,g,b,a in pixels))
+
+    def test_default_native_paint_reads_its_own_fill_texture_and_stroke(self):
+        import effect_preview
+        root=self.root/'native';root.mkdir()
+        Image.new('RGB',(16,16),'#ffd000').save(root/'gold.png')
+        solid=lambda rgb:{'content':{'render_type':'solid','solid':{'color':rgb}}}
+        config={'fill':solid([1,1,1]),'strokes':[dict(solid([0,0,0]),width=.05)],
+            'shadows':[{'enable':True,'diffuse':.08,'distance':3,'content':{
+                'render_type':'texture','texture':{'path':'gold.png'}}}]}
+        (root/'effectStyle.json').write_text(json.dumps(config))
+        self.effect['materials']['texts'][0].update(text_color='#00ff18',use_effect_default_color=True)
+        self.effect['effect_recipe']['style_overrides']=[{'effectStyle':{'path':str(root)}}]
+        style,_=effect_preview.appearance(self.effect)
+        self.assertEqual(config,style)
+        image,notice=effect_preview.render_text(self.effect,'BA CÓ',ImageFont.truetype(self.font,40),4)
+        pixels=list(getattr(image,'get_flattened_data',image.getdata)())
+        self.assertTrue(any(r>100 and g>60 and b<50 and a>5 for r,g,b,a in pixels))
+        self.assertFalse(any(g>r+30 and g>b+30 and a>100 for r,g,b,a in pixels))
+        self.assertIn('approximation',notice)
+
+    def test_unsupported_native_paint_uses_explicit_neutral_preview_not_donor_color(self):
+        import effect_preview
+        self.effect['materials']['texts'][0]['text_color']='#00ff18'
+        self.effect['effect_recipe']['style_overrides']=[{'fill':{'content':{'render_type':'unknown'}}}]
+        image,notice=effect_preview.render_text(self.effect,'BA CÓ',ImageFont.truetype(self.font,40),4)
+        self.assertIn('Neutral text',notice)
+        self.assertFalse(any(g>r+30 and g>b+30 and a>100 for r,g,b,a in getattr(image,'get_flattened_data',image.getdata)()))
+
     def test_launch_requires_step_one_and_never_starts_popup_early(self):
         (self.root / 'request.json').write_text(json.dumps({'selection_mode': 'effects_stickers'}))
         (self.root / 'workflow.json').write_text(json.dumps({'request': str(self.root/'request.json'),

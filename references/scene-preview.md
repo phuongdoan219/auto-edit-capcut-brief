@@ -8,7 +8,17 @@ The popup shows the current task, a rough-cut frame, the choices and the same Ba
 
 `GET /api/scene-preview?frame=<id>&sample=<index>&choices=<scene choices>` uses the normal bearer token, validates frame/slot/category and uses allowlisted server-side data; there is no path parameter. It returns an in-memory JPEG. No route runs FFmpeg, edits a project, writes a choice, or starts a build. A stale plan/request or missing stills must be regenerated before launch. Do not pass choices from other scenes to this endpoint.
 
-This is an **approximate layout preview**. It uses the chosen effect donor's local font, plain color/border, planned text, timing, position/scale/rotation/alpha. CapCut text size/layout, texture/glow/3D effect shaders, masks/keyframes and sticker size/motion cannot be reproduced exactly by Pillow. Sticker preview uses a readable frame from its own preview media; video-only sticker previews can report unavailable in the composite. Native sample thumbnails remain visible for appearance comparison. Display the approximation notice; do not claim an exact CapCut render. For native fidelity, stage the selected draft and inspect/render in CapCut through a supported verified path.
+This is an **approximate native recipe preview**, not a CapCut render. effect_preview.py reads the selected recipe/style overrides and, when default effect colors are used, its own local effectStyle.json. It approximates observed solid/texture/linear gradient fills, strokes and shadows with Pillow. Do not use donor text_color/border_color to guess appearance: those fields can retain green while the selected effect recipe is white/gold. Native compilation also synchronizes the single-style legacy text_color with the effective solid fill. Unknown/unreadable paint shows neutral placement text and an explicit appearance-unavailable notice.
+
+The preview preserves planned text/timing/transform. CapCut font sizing, glyph texture mapping, glow/3D shaders, masks/keyframes and sticker size/motion still need native verification. Native sample thumbnails remain available for comparison. Do not call this an exact CapCut render.
+
+## Main and supporting text
+
+AI reviews semantic hierarchy before opening choices. A structured frame can contain `text_groups:[{role:"main",text:"BA CÓ"},{role:"support",text:"Có kỷ luật…"}]`; the request uses independent text slots with `text_group: main/support`, stable IDs and English labels. Multiple main or support groups are allowed. Parallel bullets need not be split just because they contain newlines. Explicit user styling groups take precedence.
+
+For an existing resolved plan, `selection_plan.split_text_slot(request, plan, old_slot_id, groups)` returns new request/plan copies. Each group specifies `{id,text_group,segment_indices}` using the original plan's absolute segment indexes. Every old text segment must appear in exactly one group. It preserves text/timing/transform and only changes slot IDs. Builder applies each group's user-selected effect independently; main and support are never recombined on confirmation.
+
+Create a new work folder for the changed request/plan and regenerate scene previews. `workflow.restore_mapped_draft(new_work, source_work, {old_slot_id:new_main_slot_id}, focus_slot=new_main_slot_id)` validates the source confirmed session and unchanged library, preserves unchanged choices, maps the old combined decision to the explicitly reviewed main group, and leaves supporting text unselected. The new `initial-draft.json` is hash-scoped and partial validation does not make it confirmed. The popup focuses that group unless a newer browser draft exists. Do not duplicate the old choice into all new groups or auto-confirm the revision.
 
 ## How a choice reaches the edit
 

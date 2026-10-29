@@ -67,6 +67,15 @@ def compose_text(segment,materials,item,catalog,duration):
                 visual=overrides[n] if len(overrides)>1 else overrides[0]
                 for key in ('effectStyle','fill','stroke','strokes','shadow','shadows','background'):
                     if key in visual:style[key]=copy.deepcopy(visual[key])
+            # Keep the legacy editor color in sync with the effective single
+            # style. Donors can retain green text_color beside a white effect
+            # fill; neither the preview nor a later editor operation should
+            # resurrect that unrelated color.
+            if len(styles)==1:
+                fill=styles[0].get('fill',{}).get('content',{})
+                rgb=fill.get('solid',{}).get('color')
+                if fill.get('render_type')=='solid' and isinstance(rgb,list) and len(rgb)>=3:
+                    t['text_color']='#'+''.join(f'{round(max(0,min(1,float(v)))*255):02x}' for v in rgb[:3])
             t['content']=json.dumps(c,ensure_ascii=False,separators=(',',':'))
     animations=[]
     for anim_type,key in (item.get('animation_assets') or {}).items():

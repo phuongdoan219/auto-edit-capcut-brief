@@ -173,17 +173,12 @@ def render(data, request, library, frame_id, sample_index, choices):
             except (OSError, TypeError):
                 raise ValueError('The selected native font is missing; choose another effect')
             text = layer.get('text', slots[layer['slot_id']].get('text', ''))
-            stroke = max(0, round(float(material.get('border_width') or 0) * size))
-            draw = ImageDraw.Draw(image)
             spacing = max(0, round(size * float(material.get('line_spacing') or .12)))
-            box = draw.multiline_textbbox((0, 0), text, font=font, spacing=spacing, stroke_width=stroke)
-            overlay = Image.new('RGBA', (max(1, box[2] - box[0] + 8), max(1, box[3] - box[1] + 8)))
-            ImageDraw.Draw(overlay).multiline_text((4 - box[0], 4 - box[1]), text, font=font,
-                fill=color(material.get('text_color')), stroke_width=stroke,
-                stroke_fill=color(material.get('border_color'), '#000000'), spacing=spacing, align='center')
+            from effect_preview import render_text
+            overlay, appearance_notice = render_text(entry, text, font, spacing)
+            warnings.add(appearance_notice)
             overlay = overlay.resize((max(1, round(overlay.width * abs(scale.get('x', 1)))),
                                       max(1, round(overlay.height * abs(scale.get('y', 1))))))
-            warnings.add('Native text effect appearance requires CapCut render verification.')
         elif layer['kind'] == 'sticker':
             for raw in entry.get('preview_files', []):
                 try:

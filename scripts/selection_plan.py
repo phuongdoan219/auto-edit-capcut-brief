@@ -6,6 +6,41 @@ from pathlib import Path
 import selection_session as S
 
 
+def split_text_slot(request,plan,slot_id,groups):
+    """Split reviewed semantic groups using explicit plan segment indexes.
+
+    No first-line heuristic: parallel bullets are not automatically a headline.
+    Every old text segment must belong to exactly one new group.
+    """
+    from selection_request import TEXT_GROUP_LABELS
+    result=copy.deepcopy(request);edited=copy.deepcopy(plan)
+    frame=next((f for f in result['frames'] if any(s['id']==slot_id for s in f['slots'])),None)
+    if frame is None:raise ValueError('Unknown text slot: '+slot_id)
+    old=next(s for s in frame['slots'] if s['id']==slot_id)
+    if old['role']!='text':raise ValueError('Only text slots can have text groups')
+    expected={i for i,s in enumerate(edited['segments']) if s.get('slot_id')==slot_id}
+    if not expected or any(edited['segments'][i]['kind']!='text' for i in expected):
+        raise ValueError('Split requires resolved text placements')
+    occupied={s['id'] for f in result['frames'] for s in f['slots']}
+    used=set();new=[]
+    for group in groups:
+        sid=group.get('id');hierarchy=group.get('text_group');indexes=group.get('segment_indices')
+        if not isinstance(sid,str) or not sid or sid in occupied or hierarchy not in TEXT_GROUP_LABELS:
+            raise ValueError('Each text group needs a unique id and main/support hierarchy')
+        if not isinstance(indexes,list) or not indexes or any(type(i) is not int for i in indexes):
+            raise ValueError('Each group needs explicit segment indexes')
+        for i in indexes:
+            if i not in expected or i in used:raise ValueError('Groups must partition the original text placements exactly once')
+            used.add(i);edited['segments'][i]['slot_id']=sid
+        item=copy.deepcopy(old)
+        item.update(id=sid,text_group=hierarchy,label=TEXT_GROUP_LABELS[hierarchy],
+                    text='\n'.join(edited['segments'][i]['text'] for i in indexes))
+        new.append(item);occupied.add(sid)
+    if len(new)<2 or used!=expected:raise ValueError('Groups must cover every old text placement')
+    pos=frame['slots'].index(old);frame['slots'][pos:pos+1]=new
+    return result,edited
+
+
 def with_optional_sticker_placements(plan,request):
     """Prepare editable defaults on known scene ranges, without choosing assets.
 

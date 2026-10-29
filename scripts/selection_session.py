@@ -83,6 +83,8 @@ def _contracts(request, library):
                 errors.append('Duplicate slot id: ' + sid)
             slots[sid] = slot
             role = slot.get('role')
+            if 'text_group' in slot and (role != 'text' or slot['text_group'] not in ('main','support')):
+                errors.append('Text hierarchy must be main/support on a text slot: ' + sid)
             if role not in ROLE_CATEGORIES:
                 errors.append('Invalid slot role: ' + sid)
                 continue
@@ -111,6 +113,21 @@ def _contracts(request, library):
         if entry.get('category') not in CATEGORIES:
             errors.append('Invalid library category: ' + key)
     return errors, slots, entries
+
+
+def validate_draft_choices(request, library, choices):
+    """Validate a partial browser/revision draft without inventing missing choices."""
+    import copy
+    errors, slots, _ = _contracts(request, library)
+    if errors:return errors
+    if not isinstance(choices, dict):return ['Draft choices must be an object']
+    if any(sid not in slots for sid in choices):return ['Draft has an unknown slot']
+    if not choices:return []
+    partial=copy.deepcopy(request)
+    for frame in partial['frames']:
+        frame['slots']=[s for s in frame['slots'] if s['id'] in choices]
+    partial['frames']=[f for f in partial['frames'] if f['slots']]
+    return validate_choices(partial,library,choices)
 
 
 def validate_choices(request, library, choices):

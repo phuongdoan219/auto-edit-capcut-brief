@@ -87,3 +87,17 @@ test('on-frame preview sends only this scene choices and never confirms',async()
  assert.equal(request.searchParams.get('sample'),'1');assert.equal(run('confirmed'),false);
  assert.equal(run("$('frame-image').hidden"),false);
 });
+
+test('main and supporting text have separate steps and keep different effects',()=>{
+ const {run}=picker();
+ run(`state.request.frames[0].slots[0].text_group='main';
+ state.request.frames[0].slots.splice(1,0,{id:'body',role:'text',required:true,categories:['text_effect'],text_group:'support',text:'Supporting copy'});
+ entriesByKey.gentle={...entriesByKey.effect,key:'gentle',name:'Gentle'};`);
+ assert.equal(run('stepTitle(activeStep())'),'Choose main text');
+ run('chooseAsset(entriesByKey.effect);goNext()');
+ assert.equal(run('stepTitle(activeStep())'),'Choose supporting text');
+ assert.equal(run("$('confirm').disabled"),false); // render is stubbed by this harness
+ run('updateControls()');assert.equal(run("$('confirm').disabled"),true);
+ run('chooseAsset(entriesByKey.gentle)');
+ assert.equal(run('choices.text.effect'),'effect');assert.equal(run('choices.body.effect'),'gentle');
+});
