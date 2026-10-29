@@ -10,6 +10,8 @@ Request `capcut-selection-request/1`: `{id,title,brief_source,semantic_review_re
 
 Popup localhost hiển thị từng frame, gallery có tìm kiếm/phân trang, preview cache khi có và nguồn. Chưa chọn sẵn. Text chọn template hoặc style + effect + animation; template giữ các thành phần gốc, chưa phối thêm thành phần ngoài. User có thể bỏ qua slot optional, nhưng slot required cần chọn. Chỉ review -> xác nhận mới lưu lựa chọn; đóng/hủy không xác nhận. Server bind 127.0.0.1, có token, không ghi project hay tải asset online.
 
+Nút **Xem lại lựa chọn** luôn mở bảng tổng hợp, kể cả khi còn thiếu. Bảng ghi rõ thành phần còn thiếu và có nút **Chọn bổ sung cho cảnh…**. Nút **Xác nhận lựa chọn** luôn hiện ở chân bảng; chỉ bật khi mọi slot đủ điều kiện. Chỉ chọn hiệu ứng/chuyển động chưa đủ cho text tùy chỉnh: cần chọn thêm Kiểu chữ, hoặc dùng Mẫu chữ. Không hướng dẫn user tìm nút xác nhận ở màn hình chính. Không tải lại phiên đang chọn vì lựa chọn chưa xác nhận đang nằm trong bộ nhớ cửa sổ.
+
 Session gắn hash request/library và machine identity. `selection_plan.py` từ chối session pending/stale hoặc lựa chọn thiếu/khác loại, giữ nguyên source/voice/music. Template nhiều text material cần map đủ `text_slots` theo original material ID; nếu chưa rõ ý nghĩa slot, làm rõ trước khi dựng.
 
 Plan chưa có asset trang trí: mọi segment text/sticker/video_effect có `slot_id` khớp request. Segment video có `segment_id` khi dùng clip effect; effect segment có `target_segment` tương ứng và thời gian nằm trong clip. Track effect dùng native donor; asset không có dependency hoặc cấu trúc chưa hỗ trợ không được tự bịa/âm thầm bỏ qua.
