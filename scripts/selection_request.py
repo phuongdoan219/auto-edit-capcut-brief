@@ -45,7 +45,7 @@ def make_request(raw):
                 slots.append({'id':f'{fid}.text{n}','role':'text','label':'Text Effect '+str(n),
                               'text':text,'requirement':notes,'required':True,
                               'categories':['text_effect']})
-            if re.search(r'(?i)\b(?:sticker|icon|biểu tượng|mũi tên)\b',notes):
+            if re.search(r'(?i)\b(?:stickers?|icons?|nhãn d[áã]n|biểu tượng|mũi tên)\b',notes):
                 slots.append({'id':fid+'.sticker1','role':'sticker','label':'Sticker',
                               'requirement':notes,'required':True,'categories':['sticker']})
         frames.append({'id':fid,'dialogue':f.get('dialogue',''),'edit_notes':notes,'slots':slots})

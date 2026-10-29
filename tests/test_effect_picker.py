@@ -58,6 +58,12 @@ class EffectPickerTests(fixtures.ChoiceAssemblyTests):
         self.test_compile_effect_uses_its_donor_font_without_inherited_animation()
 
 class RequestModeTests(unittest.TestCase):
+    def test_sticker_mentions_in_english_and_vietnamese_create_a_sticker_slot(self):
+        for word in ['stickers','icons','nhãn dán','nhãn dãn','biểu tượng']:
+            with self.subTest(word=word):
+                req=R.make_request({'frames':[{'frame':1,'dialogue':'Giữ nguyên','edit_notes':'Thêm '+word}]})
+                self.assertEqual(['sticker'],[s['role'] for s in req['frames'][0]['slots']])
+
     def test_default_request_contains_only_effects_and_stickers(self):
         req=R.make_request({'title':'Test','frames':[{'frame':1,'dialogue':'Keep this','text':'Keep Vietnamese: Xin chào','edit_notes':'Add a sticker and video effect'}]})
         self.assertEqual('effects_stickers',req['selection_mode'])
