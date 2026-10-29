@@ -110,6 +110,14 @@ class PickerServerTests(unittest.TestCase):
         self.assertEqual('intro', result['entries'][0]['key'])
         self.assertEqual(7, json.loads(self.call('/api/assets')[1])['total'])
 
+    def test_selectable_only_hides_unusable_items_and_counts_before_pagination(self):
+        result=json.loads(self.call('/api/assets?selectable_only=1&page_size=1')[1])
+        self.assertEqual(1,result['total'])
+        self.assertEqual('style',result['entries'][0]['key'])
+        self.server.entries[0]['supported']=False
+        self.assertEqual(0,json.loads(self.call('/api/assets?selectable_only=1')[1])['total'])
+        self.assertEqual(400,self.call('/api/assets?selectable_only=maybe')[0])
+
     def test_file_change_stale_hash_and_duplicate_confirm_are_rejected(self):
         stale = self.payload()
         stale['library_hash'] = '0' * 64

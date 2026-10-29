@@ -1,92 +1,75 @@
-const {test} = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
 const html=fs.readFileSync(process.env.CAPCUT_PICKER_HTML||path.join(__dirname,'../assets/picker.html'),'utf8');
-
-function picker(choices={}) {
-  const nodes=new Map(), storage=new Map();
-  function element(tag='div') {
-    return {tag,children:[],textContent:'',disabled:false,open:false,dataset:{},
-      classList:{add(){},remove(){},toggle(){}},
-      append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;},
-      addEventListener(type,action){this[type]=action;},setAttribute(){},
-      showModal(){this.open=true;},close(){this.open=false;},scrollTo(){},focus(){}};
-  }
-  const document={createElement:element,getElementById(id){
-    if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);
-  }};
-  const script=html.match(/<script nonce="__CSP_NONCE__">([\s\S]*?)<\/script>/)[1];
-  const end=script.includes('// Events.')?script.indexOf('// Events.'):script.indexOf("$('close-detail').addEventListener");
-  const context=vm.createContext({document,URLSearchParams,location:{hash:''},console,
-    sessionStorage:{getItem(){return null;}},history:{},
-    localStorage:{getItem(k){return storage.get(k)||null;},setItem(k,v){storage.set(k,v);},removeItem(k){storage.delete(k);}}});
-  vm.runInContext(script.slice(0,end),context);
-  vm.runInContext(`state={request_hash:'request-a',library_hash:'library-a',request:{frames:[{id:'frame-1',slots:[
-    {id:'text',label:'Text Effect 1',role:'text',required:true,categories:['text_effect']}]}]}};
-    entriesByKey={font:{key:'font',category:'text_style',name:'Font',available:true,supported:true},
-      effect:{key:'effect',category:'text_effect',name:'Effect',available:true,supported:true},
-      template:{key:'template',category:'text_template',name:'Template',available:true,supported:true}};
-    choices=${JSON.stringify(choices)};render=()=>{};`,context);
-  return {nodes,context,storage,run:code=>vm.runInContext(code,context)};
+function picker(choices={}){
+ const nodes=new Map(),storage=new Map();
+ function element(tag='div'){return {tag,tagName:tag.toUpperCase(),children:[],dataset:{},textContent:'',disabled:false,hidden:false,
+  classList:{add(){},remove(){},toggle(){}},append(...xs){this.children.push(...xs)},replaceChildren(...xs){this.children=xs},
+  addEventListener(type,fn){this[type]=fn},setAttribute(){},querySelectorAll(){return []},focus(){},scrollTo(){}};}
+ const document={createElement:element,getElementById(id){if(!nodes.has(id))nodes.set(id,element());return nodes.get(id)}};
+ const script=html.match(/<script nonce="__CSP_NONCE__">([\s\S]*?)<\/script>/)[1];
+ const context=vm.createContext({document,URLSearchParams,location:{hash:''},console,history:{},
+  sessionStorage:{getItem(){return null}},localStorage:{getItem(k){return storage.get(k)||null},setItem(k,v){storage.set(k,v)},removeItem(k){storage.delete(k)}}});
+ vm.runInContext(script.slice(0,script.indexOf('// Events.')),context);
+ vm.runInContext(`state={request_hash:'r',library_hash:'l',request:{frames:[{id:'f1',slots:[
+  {id:'text',role:'text',required:true,categories:['text_effect'],text:'Keep this copy'},
+  {id:'sticker',role:'sticker',required:false,opt_in:true,categories:['sticker']}]}]}};
+  entriesByKey={effect:{key:'effect',category:'text_effect',name:'Native Effect',available:true,supported:true,previews:[{url:'/effect',type:'image/png'}]},
+   heart:{key:'heart',category:'sticker',name:'Heart',available:true,supported:true,previews:[{url:'/heart',type:'image/png'}]}};
+  choices=${JSON.stringify(choices)};render=()=>{};`,context);
+ return {nodes,context,run:code=>vm.runInContext(code,context)};
 }
-
-test('confirmation is on the main footer, without a second review dialog',()=>{
-  assert.match(html,/<footer[^>]*id="footer"[\s\S]*?id="confirm"/);
-  assert.doesNotMatch(html,/<dialog[^>]*id="review-dialog"/);
-  assert.doesNotMatch(html,/<dialog[^>]*id="asset-detail"/);
+test('the page has only two action buttons and no sidebar or nested popup',()=>{
+ assert.equal((html.match(/<button\b/g)||[]).length,2);
+ assert.doesNotMatch(html,/<aside\b|<dialog\b/);
+ assert.doesNotMatch(html,/Add Sticker \(Optional\)|Review All|Choose Missing Items/);
 });
-test('incomplete selections can be reviewed inline without changing choices',()=>{
-  const {run}=picker({});
-  run('review()');
-  assert.equal(run('viewMode'),'review');
-  assert.equal(run('Object.keys(choices).length'),0);
+test('each step focuses on one slot, with text before its optional sticker',()=>{
+ const {run}=picker();
+ assert.deepEqual(Array.from(run('allSteps().map(s=>s.slot.id)')),['text','sticker']);
+ run('updateControls()');assert.equal(run("$('confirm').disabled"),true);
 });
-test('a text effect alone enables confirmation without asking for a style',()=>{
-  const {run,nodes}=picker({});
-  run('updateProgress()');
-  assert.equal(nodes.get('confirm').disabled,true);
-  assert.match(nodes.get('remaining').textContent,/1/);
-  run("choices.text={effect:'effect'};updateProgress()");
-  assert.equal(nodes.get('confirm').disabled,false);
+test('selecting a tile saves a choice but does not advance or confirm',()=>{
+ const {run}=picker();run("chooseAsset(entriesByKey.effect)");
+ assert.equal(run('choices.text.effect'),'effect');assert.equal(run('currentStep'),0);
+ assert.equal(run('confirmed'),false);assert.equal(run("$('confirm').disabled"),false);
+ run('goNext()');assert.equal(run('currentStep'),1);
 });
-test('unconfirmed choices survive reload and are scoped to request and library',()=>{
-  const {run}=picker({text:{effect:'effect'}});
-  run('persistDraft(); choices={};restoreDraft()');
-  assert.equal(run('choices.text.effect'),'effect');
-  run("state.library_hash='different';choices={};restoreDraft()");
-  assert.equal(run('Object.keys(choices).length'),0);
+test('an optional sticker has Skip and does not create an invented choice',()=>{
+ const {run}=picker({text:{effect:'effect'}});run('currentStep=1;updateControls()');
+ assert.equal(run("$('confirm').textContent"),'Skip');assert.equal(run("$('confirm').disabled"),false);
+ run('goNext()');assert.equal(run('currentStep'),2);assert.equal(run('choices.sticker'),undefined);
+ assert.equal(run('confirmed'),false);
+ run('updateControls()');assert.equal(run("$('confirm').textContent"),'Confirm & Edit');
 });
-test('choosing an effect saves that choice without confirming automatically',()=>{
-  const {run,nodes}=picker({});
-  run("target={slot:state.request.frames[0].slots[0],part:'effect'};chooseAsset(entriesByKey.effect)");
-  assert.equal(run('choices.text.effect'),'effect');
-  assert.equal(run('confirmed'),false);
-  assert.equal(nodes.get('gallery').open,false);
+test('Back preserves previous selections and sticker selection is optional',()=>{
+ const {run}=picker({text:{effect:'effect'}});run('currentStep=1;chooseAsset(entriesByKey.heart);goBack()');
+ assert.equal(run('currentStep'),0);assert.equal(run('choices.sticker.asset'),'heart');
+ run('currentStep=1;chooseAsset(entriesByKey.heart);updateControls()');
+ assert.equal(run('choices.sticker'),undefined);assert.equal(run("$('confirm').textContent"),'Skip');
 });
-test('the picker exposes only English Text Effects and Stickers controls',()=>{
-  assert.doesNotMatch(html,/Chọn|Xác nhận|Kiểu chữ|Mẫu chữ|Chuyển động/);
-  const {run}=picker();
-  assert.deepEqual(Array.from(run('Object.keys(labels)')),['text_effect','sticker']);
+test('drafts keep the step and choices and remain scoped to request/library',()=>{
+ const {run}=picker({text:{effect:'effect'}});run('currentStep=1;persistDraft();choices={};currentStep=0;restoreDraft()');
+ assert.equal(run('currentStep'),1);assert.equal(run('choices.text.effect'),'effect');
+ run("state.library_hash='other';choices={};restoreDraft()");assert.equal(run('Object.keys(choices).length'),0);
 });
-test('broken previews fall back to the next file and then hide the item',()=>{
-  const {run,nodes,context}=picker();
-  run("globalThis.failedPreview=false;globalThis.previewNode=preview({key:'broken',previews:[{url:'/first',type:'image/png'},{url:'/second',type:'image/png'}]},()=>{failedPreview=true})");
-  run('previewNode.children[0].error()');
-  assert.match(run('previewNode.children[0].src'),/^\/second/);
-  assert.equal(run('failedPreview'),false);
-  run('previewNode.children[0].error()');
-  assert.equal(run('failedPreview'),true);
-  assert.equal(run('previewNode.children.length'),0);
+test('confirmation requires the final explicit action and then leaves one Close button',async()=>{
+ const {run}=picker({text:{effect:'effect'}});
+ run("globalThis.posts=0;api=async(path,body)=>{posts++;return {session:{status:'confirmed',choices:body.choices}}};currentStep=1;goNext()");
+ assert.equal(run('posts'),0);await run('confirmChoices()');assert.equal(run('posts'),1);
+ assert.equal(run('confirmed'),true);run('updateControls()');
+ assert.equal(run("$('back').hidden"),true);assert.equal(run("$('confirm').textContent"),'Close');
 });
-test('an unused optional sticker does not block confirmation or inflate progress',()=>{
-  const {run,nodes}=picker({text:{effect:'effect'}});
-  run("state.request.frames[0].slots.push({id:'sticker',role:'sticker',required:false,opt_in:true,categories:['sticker']});updateProgress()");
-  assert.equal(nodes.get('confirm').disabled,false);
-  assert.match(nodes.get('progress').textContent,/^1\/1 /);
-  assert.equal(run('slotErrors(state.request.frames[0].slots[1]).length'),0);
-  run("entriesByKey.heart={key:'heart',category:'sticker',supported:true,available:true};choices.sticker={asset:'heart'};updateProgress()");
-  assert.equal(nodes.get('confirm').disabled,false);
-  assert.match(nodes.get('progress').textContent,/^2\/2 /);
+test('a failed confirmation stays on review with a visible error and a retry action',async()=>{
+ const {run}=picker({text:{effect:'effect'}});run("currentStep=2;api=async()=>{throw Error('Disk unavailable')}");
+ await run('confirmChoices()');assert.equal(run('confirmed'),false);assert.equal(run('currentStep'),2);
+ assert.equal(run("$('notice').textContent"),'Disk unavailable');assert.equal(run("$('confirm').disabled"),false);
+});
+test('preview failure tries another file, then hides the option',()=>{
+ const {run}=picker();run("globalThis.failed=false;globalThis.p=preview({key:'bad',previews:[{url:'/one',type:'image/png'},{url:'/two',type:'image/png'}]},()=>failed=true)");
+ run('p.children[0].error()');assert.match(run('p.children[0].src'),/^\/two/);
+ run('p.children[0].error()');assert.equal(run('failed'),true);
 });

@@ -266,7 +266,7 @@ class PickerHandler(BaseHTTPRequestHandler):
             self._send(404, {'error': 'Route not found'})
 
     def _assets(self, query):
-        allowed = {'category', 'query', 'page', 'page_size', 'animation_type'}
+        allowed = {'category', 'query', 'page', 'page_size', 'animation_type', 'selectable_only'}
         if set(query) - allowed or any(len(value) != 1 for value in query.values()):
             self._send(400, {'error': 'Invalid library filter'})
             return
@@ -284,8 +284,13 @@ class PickerHandler(BaseHTTPRequestHandler):
             self._send(400, {'error': 'Invalid asset category or animation direction'})
             return
         term = query.get('query', [''])[0].casefold()
+        selectable = query.get('selectable_only', ['0'])[0]
+        if selectable not in ('0', '1'):
+            self._send(400, {'error': 'Invalid selectable_only flag'})
+            return
         entries = [entry for entry in self.server.entries if
-            (self.server.request.get('selection_mode') != 'effects_stickers' or self.server.has_preview(entry)) and
+            (not (self.server.request.get('selection_mode') == 'effects_stickers' or selectable == '1') or self.server.has_preview(entry)) and
+            (selectable != '1' or (entry['available'] is True and entry['supported'] is True)) and
             (not category or entry['category'] == category) and
             (not direction or entry['animation_type'] == direction) and
             (not term or term in (str(entry.get('display_name') or '') + ' ' + str(entry.get('name') or '') + ' ' + entry['key'] + ' ' +

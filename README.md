@@ -24,11 +24,11 @@ Nếu cài bằng cách copy/clone thủ công hay trình cài skill khác, thao
 
 Gọi skill với kịch bản và source/voice của video. Skill dùng thư viện đã lưu, lập kế hoạch dựng, mở popup lựa chọn theo từng cảnh rồi build theo lựa chọn được xác nhận. Không quét lại project/cache hoặc duyệt kho CapCut ở mỗi lần edit. Machine-state mặc định trên Windows: `%LOCALAPPDATA%/CodexCapCutBrief`; thư viện được kiểm tra theo máy, không dùng nhầm bản mang từ máy khác.
 
-Trong popup, chỉ chọn **Text Effect** hoặc **Sticker** cho phần được kịch bản yêu cầu. Text Effect dùng font đi kèm donor, không bắt chọn font, animation hay template riêng. Thanh dưới cùng luôn có **Choose Missing Items**, **Review All** và **Confirm & Continue**. Lựa chọn được lưu nháp trong trình duyệt theo phiên; chỉ khi bạn bấm xác nhận mới gửi cho bước dựng. Ngôn ngữ giao diện là tiếng Anh; nội dung video giữ nguyên theo brief.
+Popup tiếng Anh hướng dẫn từng bước, mỗi màn chỉ chọn một **Text Effect** hoặc **Sticker**. Bấm vào ô mẫu rồi **Continue**; sticker tùy chọn có thể **Skip**. Chỉ có hai nút chính: **Back** và **Continue/Skip**. Cuối luồng có tóm tắt và **Confirm & Edit**. Sau xác nhận chỉ hiện hoàn tất và **Close**. Lựa chọn/vị trí bước được tự lưu nháp; Continue không tự gửi cho bước dựng. Nội dung video giữ nguyên theo brief.
 
-Mỗi scene có nút **Add Sticker (Optional)** ở phía trên khi brief chưa yêu cầu sticker. Bạn có thể thêm, đổi hoặc bỏ sticker; để trống không chặn xác nhận. Sticker được yêu cầu trong brief vẫn cần chọn theo yêu cầu đó.
+Mỗi scene có bước Sticker riêng. Nếu brief chưa yêu cầu sticker, bước đó là tùy chọn: chọn một mẫu hoặc bấm **Skip**. Bấm lại một sticker đã chọn để bỏ nó. Sticker được yêu cầu trong brief vẫn cần chọn theo yêu cầu đó.
 
-Gallery chỉ hiển thị các mục có preview xem được. Mục thiếu hoặc lỗi preview được ẩn; nếu có preview dự phòng, popup tự thử trước khi ẩn mục đó.
+Danh sách mẫu chỉ hiển thị mục có preview và đủ dữ liệu dựng, không có các ô Choose bị khóa. Mục thiếu/lỗi preview được ẩn; nếu có preview dự phòng, popup tự thử trước khi ẩn mục đó. Tìm tên bằng Search, cuộn để xem thêm mẫu.
 
 ## Cập nhật thư viện khi muốn
 
