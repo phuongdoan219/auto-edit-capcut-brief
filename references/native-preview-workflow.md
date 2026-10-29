@@ -1,12 +1,12 @@
 # Thu thập preview và mở rộng thư viện từ CapCut
 
-Đọc sau bước quét project và trước khi mở picker. Công việc này gồm hai luồng: bổ sung preview cho donor đã có, và duyệt kho đang có trong CapCut để thu thập mẫu chưa từng dùng. AI thực hiện thao tác, không bắt user điền manifest/evidence hay tự chụp hàng trăm mẫu.
+Chỉ thực hiện khi thiết lập thư viện lần đầu hoặc user yêu cầu cập nhật. Khi edit thường ngày, dùng thư viện đã lưu; không chạy lại quy trình này. Công việc này gồm hai luồng: bổ sung preview cho donor đã có, và duyệt kho đang có trong CapCut để thu thập mẫu chưa từng dùng. AI thực hiện thao tác, không bắt user điền manifest/evidence hay tự chụp hàng trăm mẫu.
 
 ## Chọn cách kết nối
 
 Dùng connector/API/CLI CapCut nếu môi trường có công cụ đã xác minh được chức năng render. Không giả định `CapCut.exe --render`, không dùng CLI dựng JSON của skill như bằng chứng CapCut đã render. Nếu chưa có CLI phù hợp, dùng công cụ điều khiển Windows/macOS hiện có; đọc hướng dẫn của công cụ, chọn đúng cửa sổ CapCut và quan sát trước mỗi thao tác. Không hardcode tọa độ từ máy này sang máy khác.
 
-`native_previews.py` là CLI quản lý queue và nhập kết quả; nó không tự điều khiển hay render CapCut. Script `workflow.py prepare` sinh `preview-jobs.json` tự động. Agent tiếp tục chạy các bước UI bên dưới, sau đó prepare một workspace mới để snapshot bao gồm preview mới. Không sửa thư viện/session đang được user chọn.
+`native_previews.py` là CLI quản lý queue và nhập kết quả; nó không tự điều khiển hay render CapCut. Bước `workflow.py setup` sinh `preview-jobs.json` trong machine-state; `prepare` chỉ tham chiếu hàng đợi này khi dùng thư viện đã cài. Khi user yêu cầu bổ sung preview, agent chạy các bước UI bên dưới, sau đó `setup --refresh` và prepare workspace mới để snapshot bao gồm cập nhật. Không sửa thư viện/session đang được user chọn.
 
 ## Bổ sung preview cho tài nguyên đã sử dụng
 
@@ -40,6 +40,6 @@ Mẫu xuất hiện trong thư viện với `origin=capcut_catalog`, `preview_ki
 
 ## Mở lại picker và báo cáo
 
-Chạy prepare workspace mới: nó merge `native-previews.json` và `native-catalog.json` trong machine-state vào scan mới. Tài nguyên cũ còn dùng được giữ preview; donor thay đổi cần lấy lại. Queue giữ các job thiếu clip ngay cả khi đã có ảnh tĩnh.
+Sau đợt bổ sung thư viện theo yêu cầu, chạy `workflow.py setup --refresh` để ghép registry `native-previews.json`/`native-catalog.json`, rồi prepare workspace mới. Prepare thường ngày chỉ đọc library.json đã lưu, không scan/merge registry lại. Tài nguyên cũ còn dùng được giữ preview; donor thay đổi cần lấy lại. Queue giữ các job thiếu clip ngay cả khi đã có ảnh tĩnh.
 
 Nêu rõ: bao nhiêu mẫu từ project, bao nhiêu mẫu từ bảng CapCut, bao nhiêu ảnh/clip native đã nhập, bao nhiêu mục chỉ xem, bao nhiêu job còn thiếu và phần catalog chưa duyệt. Không hứa toàn bộ kho online; nội dung phụ thuộc phiên bản, region, tài khoản và tải theo cuộn. Không upload ảnh/video/cache dự án người dùng lên GitHub; chỉ commit code và tài liệu skill.

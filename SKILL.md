@@ -1,6 +1,6 @@
 ---
 name: auto-edit-capcut-brief
-description: Use when dựng hoặc sửa video bằng CapCut PC từ brief từng frame trên MarkFlow, Google Sheets hoặc tài liệu, với footage/voice có sẵn; quét toàn bộ project và mở popup để user chọn text effect, animation, template, sticker và video effect.
+description: Use when dựng hoặc sửa video bằng CapCut PC từ brief từng frame trên MarkFlow, Google Sheets hoặc tài liệu, với footage/voice có sẵn; tạo thư viện CapCut một lần trên máy rồi dùng lại để mở popup để user chọn text effect, animation, template, sticker và video effect.
 ---
 
 # Dựng CapCut từ brief và source có sẵn
@@ -24,11 +24,14 @@ Kiểm tra đường dẫn và `ffprobe`; file `.crdownload/.part` phải đư�
 
 ## Quét thư viện và chọn element
 
-Đọc [picker-and-scan.md](references/picker-and-scan.md). Mỗi lần chuẩn bị một video, `workflow.py prepare` tự quét tất cả project CapCut đọc được trên máy hiện tại, kể cả các timeline. Nó nhận thư mục tiêu chuẩn Windows/macOS và vị trí tùy chỉnh đã lưu; dùng `--root` nếu project được chuyển nhưng không tìm thấy. Gộp tài nguyên trùng; báo project lỗi/mã hóa và asset thiếu cache. Chỉ tài nguyên từng lưu trong project hoặc cache còn tồn tại được thu thập, không đại diện toàn bộ kho online.
+Đọc [picker-and-scan.md](references/picker-and-scan.md). Tách **thiết lập thư viện lần đầu** khỏi **dựng video thường ngày**:
 
-Sau quét, đọc [references/native-preview-workflow.md](references/native-preview-workflow.md) và thực hiện bước thu thập preview native. `prepare` tự sinh `preview-jobs.json`; agent vào CapCut bằng công cụ đã xác minh hoặc điều khiển UI để lấy ảnh/clip cho tài nguyên thiếu preview, đồng thời duyệt kho CapCut hiện truy cập được để thu thêm mẫu chưa từng dùng trong project. CLI `native_previews.py` nhập kết quả và giữ qua lần quét sau; nó không tự render CapCut. Mẫu chỉ có thumbnail được lưu để xem, chỉ bật chọn dựng sau khi có native donor/recipe tương thích. Báo phạm vi đã duyệt và phần còn thiếu, không gọi là toàn bộ kho online. Prepare workspace mới sau thu thập để giữ phiên chọn cũ nguyên vẹn.
+- Khi cài bằng installer của repo, `python install.py` đặt skill vào thư mục skills và tự chạy thiết lập ngay trên máy đó. Nếu AI cài bằng cách copy/clone hoặc công cụ cài skill khác, chạy `python scripts/workflow.py setup` ngay sau cài khi có thể; nếu công cụ đó không chạy bước hậu cài, lần gọi đầu tiên sẽ tự thiết lập khi chưa có thư viện. Copy/clone file đơn thuần không có hook thực thi.
+- Thiết lập lần đầu quét tất cả project/timeline CapCut đọc được và cache `effect`/`artistEffect` trên máy, gộp tài nguyên, lấy preview có sẵn và lưu thư viện cá nhân cùng trạng thái `setup.json`. Nhận root tiêu chuẩn Windows/macOS và vị trí tùy chỉnh; dùng `--root`/`--cache-root` khi cần. Đọc [references/native-preview-workflow.md](references/native-preview-workflow.md) chỉ khi thiết lập/bổ sung thư viện. Hàng đợi lấy preview qua UI được lưu để biết phần còn thiếu, không tự chặn mọi lần dựng vì chưa có đủ preview.
+- Những lần gọi skill sau: **dùng thư viện đã lưu, không quét lại project/cache, không tự đi duyệt kho CapCut hoặc lấy preview**. Tập trung đọc kịch bản, lập kế hoạch dựng và popup theo từng cảnh. `prepare` nạp thư viện, lưu snapshot cho video; chỉ tự thiết lập nếu máy chưa có thư viện hợp lệ hoặc thư viện được mang từ máy khác. Tài nguyên đã chọn vẫn được kiểm tra còn tồn tại khi xác nhận/build.
+- Chỉ khi user yêu cầu cập nhật thư viện, chạy `python scripts/workflow.py setup --refresh` (thêm `--root` nếu đổi nơi lưu). Sau đó dùng snapshot mới cho video mới; không sửa phiên lựa chọn đang mở. Thư viện lỗi cần làm mới rõ ràng, không âm thầm quét lại ở mỗi lần edit.
 
-Có thể mở rộng thư viện nhanh bằng cách quét toàn bộ cache `effect` và `artistEffect`, gồm preview trong gói ZIP, qua `scripts/cache_catalog.py`. Script chỉ nhận diện loại có bằng chứng native, loại font-only bị bỏ qua; tài nguyên thiếu ảnh không được đếm là có preview. Đọc [references/capcut-cli-integration.md](references/capcut-cli-integration.md) để tra tên–ID và kiểm tra draft bằng capcut-cli. Danh mục ID tích hợp là dữ liệu tham khảo có phiên bản, không phải kho preview online.
+Thư viện là tài nguyên cá nhân trên từng máy, không phải toàn bộ kho online và không đóng gói dữ liệu máy này cho người khác. Mục chỉ có preview nhưng chưa có cấu trúc dựng vẫn chỉ xem. Các project mã hóa/không đọc được và preview thiếu phải được báo trong kết quả setup. [references/capcut-cli-integration.md](references/capcut-cli-integration.md) mô tả tra ID/kiểm tra draft tùy chọn; danh mục ID không phải preview online.
 
 AI đọc thoại và chú thích của từng frame, lập request slot cho chữ, sticker/icon và video effect theo yêu cầu. Bản nháp từ `selection_request.py` cần AI rà lại số slot, loại chỉ dẫn khỏi nội dung chữ và đặt `semantic_review_required` thành false. Không yêu cầu user nhập JSON. Source video, voice và nhạc giữ theo brief.
 

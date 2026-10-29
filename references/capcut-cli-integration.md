@@ -14,7 +14,7 @@ Ví dụ quét Windows (thay theo máy hiện tại):
 python scripts/cache_catalog.py --library <snapshot/library.json> --state-dir <machine-state> --root <CapCut/User Data/Cache/effect> --root <CapCut/User Data/Cache/artistEffect> --report <work/cache-coverage.json>
 ```
 
-Lần prepare kế tiếp ghép các preview vào thư viện. Có hash, owner resource, ID và đường dẫn gốc. Khử trùng theo loại + resource ID + hash media; tổng packages có preview có thể lớn hơn unique previews do cùng tài nguyên có cả thư mục và ZIP. Chỉ dùng số unique để báo cáo. Các entry cache chỉ có preview, chưa có donor/recipe, vẫn chỉ xem. Gắn vào donor có thể dựng chỉ khi kiểm chứng đúng ID/đường dẫn/appearance; không ghép theo tên gần giống.
+Thiết lập lần đầu tự gọi cache scanner. Sau khi nhập thêm preview theo yêu cầu, chạy `workflow.py setup --refresh` để cập nhật thư viện; prepare thường ngày chỉ dùng bản đã lưu. Có hash, owner resource, ID và đường dẫn gốc. Khử trùng theo loại + resource ID + hash media; tổng packages có preview có thể lớn hơn unique previews do cùng tài nguyên có cả thư mục và ZIP. Chỉ dùng số unique để báo cáo. Các entry cache chỉ có preview, chưa có donor/recipe, vẫn chỉ xem. Gắn vào donor có thể dựng chỉ khi kiểm chứng đúng ID/đường dẫn/appearance; không ghép theo tên gần giống.
 
 ## Thiết lập CLI tùy chọn
 

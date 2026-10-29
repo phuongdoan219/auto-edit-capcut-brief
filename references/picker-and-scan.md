@@ -1,6 +1,6 @@
 # Quét thư viện và chọn element
 
-`library_scan.py ensure --state-dir <dir>` tìm root thông thường Windows/macOS và `currentCustomDraftPath` trong cấu hình CapCut. `--root <path>` lặp lại cho root khác. Chỉ đọc project; bỏ backup/cache/symlink; xử lý từng timeline và gộp file trùng. Thư viện là `state-dir/library.json`, machine identity dựa trên host/user/root và được làm mới khi prepare. Kiểm tra summary và errors; không khẳng định quét hết nếu có project mã hóa hoặc không truy cập được.
+`library_scan.py ensure --state-dir <dir>` tìm root thông thường Windows/macOS và `currentCustomDraftPath` trong cấu hình CapCut. `--root <path>` lặp lại cho root khác. Chỉ đọc project; bỏ backup/cache/symlink; xử lý từng timeline và gộp file trùng. Thư viện là `state-dir/library.json`, machine identity dựa trên host/user/root. `workflow.py setup` chỉ quét lần đầu; `setup --refresh` mới quét lại. `prepare` dùng thư viện đã lưu, không khám phá/quét project/cache lại. Kiểm tra summary và errors; không khẳng định quét hết nếu có project mã hóa hoặc không truy cập được.
 
 Phân biệt text style, text effect, animation in/out/loop, text template, sticker/icon và video effect. `available` xác nhận cache tồn tại; `supported` cho biết cấu trúc native builder hiểu; cả hai chưa chứng minh render. Ưu tiên preview thật trong cache; hình minh họa chữ phải có nhãn gần đúng và mục không có preview phải ghi rõ. Asset online chưa tải hoặc chưa từng xuất hiện trong project không tự xuất hiện.
 
@@ -18,4 +18,4 @@ Plan chưa có asset trang trí: mọi segment text/sticker/video_effect có `sl
 
 Ảnh xem trước phải thuộc chính tài nguyên: template chỉ lấy từ thư mục `path` của `text_templates`, không mượn icon của hiệu ứng/font/animation đi kèm. Nếu không có preview toàn mẫu, ghi rõ và cho xem chi tiết (nội dung từng dùng, dự án nguồn, tên gốc). Phân biệt `text_template_subtitle` là mẫu phụ đề; biến thể theo font/cài đặt không đồng nghĩa mẫu thiết kế khác nhau. Dùng `display_name` tiếng Việt mô tả để duyệt; giữ nguyên tên gốc/ID và cho xem tên gốc trong chi tiết. Chọn chỉ gán vào ô, không phải mở xem mẫu hoặc render trong CapCut.
 
-Sau scan áp dụng [native-preview-workflow.md](native-preview-workflow.md). Preview native nhập qua registry được giữ khi scan lại nếu machine/donor/hash khớp. Các tile thu trực tiếp từ bảng CapCut ngoài project hiện trong thư viện dạng chỉ xem cho tới khi có native recipe.
+Chỉ trong thiết lập lần đầu hoặc cập nhật thư viện theo yêu cầu mới áp dụng [native-preview-workflow.md](native-preview-workflow.md). Preview native nhập qua registry được giữ khi scan lại nếu machine/donor/hash khớp. Các tile thu trực tiếp từ bảng CapCut ngoài project hiện trong thư viện dạng chỉ xem cho tới khi có native recipe.

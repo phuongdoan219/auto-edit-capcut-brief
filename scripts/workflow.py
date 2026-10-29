@@ -7,6 +7,7 @@ import library_scan
 import selection_session as S
 import selection_plan
 import capcut_native
+import library_setup
 
 
 def read(path):return json.loads(Path(path).read_text(encoding='utf-8-sig'))
@@ -18,8 +19,7 @@ def save(path,data):
 
 
 def default_state():
-    if os.name=='nt':return Path(os.environ.get('LOCALAPPDATA',Path.home()/'AppData'/'Local'))/'CodexCapCutBrief'
-    return Path.home()/'Library'/'Application Support'/'CodexCapCutBrief' if sys.platform=='darwin' else Path.home()/'.cache'/'codex-capcut-brief'
+    return library_setup.default_state()
 
 
 def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None):
@@ -27,20 +27,18 @@ def prepare(request_path,work,state_dir=None,roots=None,plan=None,base=None):
     if (work/'selection.json').exists():raise ValueError('This work folder already has a selection session; resume it or use a new folder')
     request=read(request_path)
     if request.get('semantic_review_required') is not False:raise ValueError('AI must review frame slots and set semantic_review_required=false before opening picker')
-    catalog,_=library_scan.ensure_library(state_dir or default_state(),roots)
+    catalog,installed_path,setup=library_setup.load_or_setup(state_dir or default_state(),roots)
     if not catalog['summary']['projects_scanned']:raise ValueError('No readable CapCut projects found; specify the actual draft root')
     S.make_session(request,catalog)
     rp=work/'request.json';lp=work/'library.json'
     # Pin the exact inventory snapshot for this user selection. Refreshing the
     # machine-wide inventory later cannot silently change an open picker.
     save(rp,request);save(lp,catalog)
-    from native_previews import jobs
-    preview_jobs = jobs(catalog)
-    save(work/'preview-jobs.json', preview_jobs)
     state={'schema':'capcut-choice-workflow/1','status':'ready','request':str(rp),'library':str(lp),
            'session':str(work/'selection.json'),'service':str(work/'picker-service.json'),
            'machine_id':catalog['machine_id'],'summary':catalog['summary'],
-           'preview_jobs':str(work/'preview-jobs.json'),'previews_pending':preview_jobs['pending'],
+           'preview_jobs':setup['preview_jobs'],'previews_pending':setup['previews_pending'],
+           'library_mode':setup['mode'],'installed_library':str(installed_path),
            'plan':str(Path(plan).resolve()) if plan else None,'base':str(Path(base).resolve()) if base else None}
     save(work/'workflow.json',state);return state
 
@@ -102,6 +100,7 @@ def resume(work,install=False,confirmed_closed=False):
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__);sub=ap.add_subparsers(dest='command',required=True)
+    p=sub.add_parser('setup');p.add_argument('--state-dir');p.add_argument('--root',action='append');p.add_argument('--cache-root',action='append');p.add_argument('--refresh',action='store_true')
     p=sub.add_parser('prepare');p.add_argument('--request',required=True);p.add_argument('--work',required=True);p.add_argument('--state-dir');p.add_argument('--root',action='append');p.add_argument('--plan');p.add_argument('--base')
     for command in ('launch','resume','run'):
         p=sub.add_parser(command);p.add_argument('--work',required=True)
@@ -111,7 +110,9 @@ def main():
         if command=='run':p.add_argument('--timeout',type=float,default=0,help='0 keeps the local worker waiting for explicit human confirmation')
     a=ap.parse_args()
     try:
-        if a.command=='prepare':result=prepare(a.request,a.work,a.state_dir,a.root,a.plan,a.base)
+        if a.command=='setup':
+            _,_,result=library_setup.load_or_setup(a.state_dir,a.root,refresh=a.refresh,caches=a.cache_root)
+        elif a.command=='prepare':result=prepare(a.request,a.work,a.state_dir,a.root,a.plan,a.base)
         elif a.command=='launch':result=launch(a.work,a.no_open)
         elif a.command=='resume':result=resume(a.work,a.install,a.confirmed_closed)
         else:

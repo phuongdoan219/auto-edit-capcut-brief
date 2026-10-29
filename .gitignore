@@ -12,3 +12,8 @@ previews/
 native-previews.json
 native-catalog.json
 preview-jobs.json
+
+setup.json
+setup.lock
+setup-error.json
+cache-coverage.json

@@ -95,7 +95,8 @@ def discover_roots(roots=None, errors=None):
         user_data.append(Path(os.environ['LOCALAPPDATA']) / 'CapCut' / 'User Data')
     # Include platform conventions, never enumerate unrelated home subdirectories.
     user_data += [home / 'AppData' / 'Local' / 'CapCut' / 'User Data',
-                  home / 'Library' / 'Application Support' / 'CapCut' / 'User Data']
+                  home / 'Library' / 'Application Support' / 'CapCut' / 'User Data',
+                  home / 'Library' / 'Containers' / 'com.lemon.lvoverseas' / 'Data' / 'Movies' / 'CapCut' / 'User Data']
     standard = [base / 'Projects' / 'com.lveditor.draft' for base in user_data]
     standard += [home / 'Movies' / 'CapCut' / 'User Data' / 'Projects' / 'com.lveditor.draft']
     found = [p for p in standard if p.exists()]
